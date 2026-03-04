@@ -1,0 +1,133 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "Shamela",
+  "projectDescription": "TypeScript library for accessing and downloading Maktabah Shamela v4 APIs with content processing utilities for Arabic Islamic texts.",
+  "theme": "palm",
+  "primaryColor": "#2D5F3F",
+  "lightColor": "#4A9D6E",
+  "darkColor": "#1A3D28",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/configuration",
+              "guides/nodejs-usage",
+              "guides/nextjs-usage",
+              "guides/browser-usage",
+              "guides/content-processing"
+            ]
+          },
+          {
+            "group": "Examples",
+            "pages": [
+              "examples/download-master",
+              "examples/download-book",
+              "examples/retrieve-data",
+              "examples/content-utilities"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Configuration",
+            "pages": [
+              "api/configuration/configure",
+              "api/configuration/reset-config",
+              "api/configuration/get-config"
+            ]
+          },
+          {
+            "group": "Metadata & Downloads",
+            "pages": [
+              "api/metadata/get-master-metadata",
+              "api/metadata/download-master-database",
+              "api/metadata/get-book-metadata",
+              "api/metadata/download-book",
+              "api/metadata/get-cover-url"
+            ]
+          },
+          {
+            "group": "Data Access",
+            "pages": [
+              "api/data/get-book",
+              "api/data/get-master",
+              "api/data/denormalize-books"
+            ]
+          },
+          {
+            "group": "Content Utilities",
+            "pages": [
+              "api/content/parse-content-robust",
+              "api/content/map-page-character-content",
+              "api/content/split-page-body-from-footer",
+              "api/content/remove-arabic-numeric-page-markers",
+              "api/content/remove-tags-except-span",
+              "api/content/html-processing",
+              "api/content/markdown-conversion"
+            ]
+          },
+          {
+            "group": "Types",
+            "pages": [
+              "api/types/book-data",
+              "api/types/master-data",
+              "api/types/configuration"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Full data lifecycle - fetch metadata, download databases, and query results in-memory",
+    "Runtime configuration with API credentials, WASM paths, and custom fetch implementations",
+    "Content processing utilities for Arabic book content with Shamela-specific formatting",
+    "Environment-aware WASM bundle selection for Node.js, browsers, and bundlers",
+    "Lightweight content-only export for client-side use without sql.js overhead",
+    "Support for both JSON and SQLite output formats"
+  ],
+  "publicApiSurface": [
+    "configure",
+    "resetConfig",
+    "getConfig",
+    "getConfigValue",
+    "requireConfigValue",
+    "getMasterMetadata",
+    "downloadMasterDatabase",
+    "getBookMetadata",
+    "downloadBook",
+    "getCoverUrl",
+    "getBook",
+    "getMaster",
+    "denormalizeBooks",
+    "parseContentRobust",
+    "mapPageCharacterContent",
+    "splitPageBodyFromFooter",
+    "removeArabicNumericPageMarkers",
+    "removeTagsExceptSpan",
+    "normalizeLineEndings",
+    "stripHtmlTags",
+    "htmlToMarkdown",
+    "normalizeHtml",
+    "normalizeTitleSpans",
+    "moveContentAfterLineBreakIntoSpan",
+    "convertContentToMarkdown",
+    "buildUrl",
+    "httpsGet"
+  ]
+}
