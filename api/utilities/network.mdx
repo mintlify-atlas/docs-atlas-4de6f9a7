@@ -1,0 +1,130 @@
+---
+title: Network Utilities
+description: Low-level network utilities for building URLs and making HTTP requests
+---
+
+## Overview
+
+The network utilities provide low-level functions for constructing authenticated API URLs and making HTTP requests. These are primarily used internally by the library but are exported for advanced use cases.
+
+## buildUrl()
+
+Constructs authenticated API URLs with query parameters and optional API key injection.
+
+### Signature
+
+```typescript
+buildUrl(endpoint: string, queryParams: Record<string, any>, useAuth?: boolean): URL
+```
+
+### Parameters
+
+<ParamField path="endpoint" type="string" required>
+  The API endpoint URL
+</ParamField>
+
+<ParamField path="queryParams" type="Record<string, any>" required>
+  Query parameters to append to the URL
+</ParamField>
+
+<ParamField path="useAuth" type="boolean" default="true">
+  Whether to include the API key in the query parameters
+</ParamField>
+
+### Returns
+
+Returns a `URL` object with the endpoint, query parameters, and optional API key.
+
+### Example
+
+```typescript
+import { buildUrl } from 'shamela';
+
+const url = buildUrl('https://shamela.ws/api/books', {
+  major_release: '1',
+  minor_release: '0'
+});
+
+console.log(url.toString());
+// https://shamela.ws/api/books?major_release=1&minor_release=0&key=YOUR_API_KEY
+```
+
+<Note>
+  The API key is automatically included when `useAuth` is `true` (default) and will be read from the configuration.
+</Note>
+
+## httpsGet()
+
+Makes HTTPS GET requests using the configured fetch implementation, automatically parsing JSON responses and returning binary data otherwise.
+
+### Signature
+
+```typescript
+httpsGet<T extends Uint8Array | Record<string, any>>(
+  url: string | URL, 
+  options?: { fetchImpl?: typeof fetch }
+): Promise<T>
+```
+
+### Parameters
+
+<ParamField path="url" type="string | URL" required>
+  The URL to fetch
+</ParamField>
+
+<ParamField path="options.fetchImpl" type="typeof fetch">
+  Optional custom fetch implementation. Uses the configured fetch or global fetch if not provided.
+</ParamField>
+
+### Returns
+
+Returns a Promise that resolves to:
+- `Record<string, any>` - If the response is JSON
+- `Uint8Array` - If the response is binary data
+
+### Example
+
+```typescript
+import { httpsGet } from 'shamela';
+
+// Fetch JSON data
+const metadata = await httpsGet<{ version: number }>(
+  'https://shamela.ws/api/master_patch?version=0'
+);
+
+console.log(metadata.version);
+
+// Fetch binary data
+const binaryData = await httpsGet<Uint8Array>(
+  'https://shamela.ws/downloads/book.zip'
+);
+```
+
+### Custom Fetch Implementation
+
+```typescript
+import { httpsGet } from 'shamela';
+
+const data = await httpsGet('https://api.example.com/data', {
+  fetchImpl: customFetch
+});
+```
+
+<Tip>
+  Use the custom fetch implementation option when you need special request handling, such as adding custom headers or implementing retry logic.
+</Tip>
+
+## Use Cases
+
+These utilities are useful when:
+
+- Building custom API integrations with Shamela
+- Implementing custom caching or request middleware
+- Debugging API calls
+- Creating custom download managers
+
+## Related
+
+- [configure()](/api/configuration/configure) - Configure fetch implementation
+- [getBookMetadata()](/api/metadata/get-book-metadata) - Uses these utilities internally
+- [getMasterMetadata()](/api/metadata/get-master-metadata) - Uses these utilities internally

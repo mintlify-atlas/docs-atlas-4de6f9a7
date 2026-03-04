@@ -1,0 +1,151 @@
+---
+title: Constants
+description: Exported constants for character mapping rules and default values
+---
+
+## Overview
+
+Shamela exports several constants that are used internally and can be customized for advanced use cases.
+
+## DEFAULT_MAPPING_RULES
+
+Character mapping rules used by `mapPageCharacterContent()` to normalize Arabic text from Shamela sources.
+
+### Type
+
+```typescript
+const DEFAULT_MAPPING_RULES: Record<string, string>
+```
+
+### Description
+
+A dictionary of regex patterns (as strings) mapped to their replacement values. These rules handle special Arabic ligatures, religious abbreviations, and formatting artifacts commonly found in Shamela texts.
+
+### Common Mappings
+
+The rules include mappings for:
+
+- **Religious abbreviations**: Special Unicode characters representing common Islamic phrases
+  - `﵀` → `رَحِمَهُ ٱللَّٰهُ` (May Allah have mercy on him)
+  - `﵁` → `رضي الله عنه` (May Allah be pleased with him)
+  - `﷽` → `بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ` (Bismillah)
+  
+- **Formatting artifacts**: HTML image tags and special markers
+
+### Usage
+
+```typescript
+import { mapPageCharacterContent, DEFAULT_MAPPING_RULES } from 'shamela';
+
+// Use default rules
+const normalized = mapPageCharacterContent(rawContent);
+
+// Extend with custom rules
+const customRules = {
+  ...DEFAULT_MAPPING_RULES,
+  'customPattern': 'replacement'
+};
+
+const customNormalized = mapPageCharacterContent(rawContent, customRules);
+```
+
+### Available from Export
+
+```typescript
+import { DEFAULT_MAPPING_RULES } from 'shamela/constants';
+```
+
+<Info>
+  The complete list of mappings can be found in the source code at `src/utils/constants.ts`. The rules are designed to preserve the meaning while making the text more readable.
+</Info>
+
+## DEFAULT_MASTER_METADATA_VERSION
+
+The default version number used when checking for master database updates.
+
+### Type
+
+```typescript
+const DEFAULT_MASTER_METADATA_VERSION = 0
+```
+
+### Description
+
+When requesting master database metadata, this constant represents "get the latest version". It's used as the default parameter for `getMasterMetadata()`.
+
+### Usage
+
+```typescript
+import { getMasterMetadata, DEFAULT_MASTER_METADATA_VERSION } from 'shamela';
+
+// Explicitly use default (same as calling with no parameters)
+const metadata = await getMasterMetadata(DEFAULT_MASTER_METADATA_VERSION);
+
+// Check for updates from a specific version
+const updates = await getMasterMetadata(5);
+```
+
+## FOOTNOTE_MARKER
+
+The default separator used to distinguish page body content from footnotes.
+
+### Type
+
+```typescript
+const FOOTNOTE_MARKER = '_________'
+```
+
+### Description
+
+This string marker (9 underscores) is used by Shamela to separate the main text of a page from its footnotes. The `splitPageBodyFromFooter()` function uses this constant by default.
+
+### Usage
+
+```typescript
+import { splitPageBodyFromFooter, FOOTNOTE_MARKER } from 'shamela';
+
+// Use default marker
+const [body, footnotes] = splitPageBodyFromFooter(pageContent);
+
+// Use custom marker
+const [body, footnotes] = splitPageBodyFromFooter(pageContent, '---');
+
+// Check if content has footnotes
+if (pageContent.includes(FOOTNOTE_MARKER)) {
+  console.log('This page has footnotes');
+}
+```
+
+## UNKNOWN_VALUE_PLACEHOLDER
+
+Placeholder value representing unknown or missing data in the Shamela database.
+
+### Type
+
+```typescript
+const UNKNOWN_VALUE_PLACEHOLDER = '99999'
+```
+
+### Description
+
+This constant is used internally to represent missing or unknown values in author death dates and other numeric fields.
+
+### Usage
+
+```typescript
+import { denormalizeBooks, UNKNOWN_VALUE_PLACEHOLDER } from 'shamela';
+
+const books = denormalizeBooks(masterData);
+
+books.forEach(book => {
+  if (book.author.death?.toString() === UNKNOWN_VALUE_PLACEHOLDER) {
+    console.log(`Author death date unknown: ${book.author.name}`);
+  }
+});
+```
+
+## Related
+
+- [mapPageCharacterContent()](/api/content/map-page-character-content) - Uses DEFAULT_MAPPING_RULES
+- [splitPageBodyFromFooter()](/api/content/split-page-body-from-footer) - Uses FOOTNOTE_MARKER
+- [getMasterMetadata()](/api/metadata/get-master-metadata) - Uses DEFAULT_MASTER_METADATA_VERSION

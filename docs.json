@@ -94,6 +94,13 @@
             ]
           },
           {
+            "group": "Utilities",
+            "pages": [
+              "api/utilities/network",
+              "api/utilities/constants"
+            ]
+          },
+          {
             "group": "Types",
             "pages": [
               "api/types/book-data",
