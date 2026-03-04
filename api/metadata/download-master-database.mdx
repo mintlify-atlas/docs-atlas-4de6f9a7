@@ -1,0 +1,188 @@
+---
+title: 'downloadMasterDatabase'
+description: 'Downloads and processes the master database from the Shamela service'
+---
+
+## Overview
+
+The master database contains comprehensive information about all books, authors, and categories available in the Shamela library. This function downloads the database files, creates the necessary tables, and exports the data in the specified format (JSON or SQLite).
+
+## Function Signature
+
+```typescript
+downloadMasterDatabase(options: DownloadMasterOptions): Promise<string>
+```
+
+## Parameters
+
+<ParamField path="options" type="DownloadMasterOptions" required>
+  Configuration options for downloading the master database
+  
+  <Expandable title="properties">
+    <ParamField path="masterMetadata" type="GetMasterMetadataResponsePayload">
+      Optional pre-fetched metadata to avoid an extra HTTP call. If not provided, the function will fetch it automatically.
+    </ParamField>
+    
+    <ParamField path="outputFile" type="OutputOptions" required>
+      Output file configuration
+      
+      <Expandable title="properties">
+        <ParamField path="path" type="string" required>
+          Output file path. Supported extensions:
+          - `.db` or `.sqlite` - SQLite database format
+          - `.json` - JSON format
+        </ParamField>
+        
+        <ParamField path="writer" type="function">
+          Custom writer function for non-Node.js environments. Signature: `(payload: string | Uint8Array) => Promise<void> | void`
+        </ParamField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Returns
+
+<ResponseField name="string" type="string">
+  The path of the created output file
+</ResponseField>
+
+## Examples
+
+### Download as SQLite Database
+
+```typescript
+import { downloadMasterDatabase } from 'shamela';
+
+const dbPath = await downloadMasterDatabase({
+  outputFile: { path: './shamela_master.db' }
+});
+
+console.log(`Downloaded to: ${dbPath}`);
+```
+
+### Download as JSON
+
+```typescript
+const jsonPath = await downloadMasterDatabase({
+  outputFile: { path: './shamela_master.json' }
+});
+
+console.log(`Master data saved to: ${jsonPath}`);
+```
+
+### Using Pre-fetched Metadata
+
+```typescript
+import { getMasterMetadata, downloadMasterDatabase } from 'shamela';
+
+// Fetch metadata first
+const metadata = await getMasterMetadata();
+console.log(`Latest version: ${metadata.version}`);
+
+// Download using the metadata
+const dbPath = await downloadMasterDatabase({
+  masterMetadata: metadata,
+  outputFile: { path: './master.db' }
+});
+```
+
+### Custom Writer (Browser Environment)
+
+```typescript
+const downloadMaster = async () => {
+  const path = await downloadMasterDatabase({
+    outputFile: {
+      path: 'master.json',
+      writer: async (payload) => {
+        // Save to IndexedDB, localStorage, or trigger download
+        const blob = new Blob([payload], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'master.json';
+        a.click();
+      }
+    }
+  });
+};
+```
+
+## Output Format
+
+### SQLite Format
+
+The SQLite database contains the following tables:
+- `authors` - Author information
+- `books` - Book metadata
+- `categories` - Category hierarchy
+
+### JSON Format
+
+```typescript
+{
+  "version": 123,
+  "authors": [
+    {
+      "id": 1,
+      "name": "محمد بن إسماعيل البخاري",
+      "death_year": 256
+      // ... other fields
+    }
+  ],
+  "books": [
+    {
+      "id": 26592,
+      "name": "صحيح البخاري",
+      "author_id": 1,
+      "category_id": 5
+      // ... other fields
+    }
+  ],
+  "categories": [
+    {
+      "id": 1,
+      "name": "الحديث الشريف",
+      "parent_id": null
+      // ... other fields
+    }
+  ]
+}
+```
+
+## Error Handling
+
+<Warning>
+  This function throws an error when:
+  - Download fails
+  - Expected tables are missing from the archive
+  - Database operations fail
+  - File write operations fail
+  - Unsupported file extension is provided
+</Warning>
+
+```typescript
+try {
+  const path = await downloadMasterDatabase({
+    outputFile: { path: './master.db' }
+  });
+  console.log('Success:', path);
+} catch (error) {
+  console.error('Download failed:', error.message);
+}
+```
+
+## Performance Notes
+
+<Info>
+  - The master database is typically 50-100MB compressed
+  - Download time depends on network speed
+  - SQLite format is more compact than JSON
+  - Pre-fetching metadata can save one HTTP round-trip
+</Info>
+
+## Related Functions
+
+- [getMasterMetadata](/api/metadata/get-master-metadata) - Fetch metadata before downloading
+- [getMaster](/api/data/get-master) - Get master data as a JavaScript object without saving to disk
+- [denormalizeBooks](/api/data/denormalize-books) - Transform master data to resolve relationships

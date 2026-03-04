@@ -1,0 +1,215 @@
+---
+title: Introduction
+description: TypeScript library for accessing Maktabah Shamela v4 APIs with content processing utilities for Arabic Islamic texts
+---
+
+<div className="relative overflow-hidden bg-gradient-to-br from-[#1A3D28] via-[#2D5F3F] to-[#1A3D28] dark:from-[#0f1117] dark:via-[#1A3D28] dark:to-[#0f1117] py-20">
+  <div className="max-w-6xl mx-auto px-6 relative z-10">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+      <div className="lg:col-span-7">
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6">
+          Access Maktabah Shamela v4 with TypeScript
+        </h1>
+        <p className="text-lg sm:text-xl text-gray-200 dark:text-gray-300 mb-8 max-w-2xl">
+          A universal TypeScript library for downloading Islamic texts, querying book databases, and processing Arabic content from Shamela's extensive collection.
+        </p>
+        <div className="flex flex-wrap gap-4">
+          <a 
+            href="/quickstart" 
+            className="inline-flex items-center px-6 py-3 rounded-lg bg-white text-[#2D5F3F] font-semibold hover:bg-gray-100 transition-colors"
+          >
+            Get Started
+          </a>
+          <a 
+            href="/api/configuration/configure" 
+            className="inline-flex items-center px-6 py-3 rounded-lg border border-white/30 bg-white/10 text-white font-semibold hover:bg-white/20 transition-colors"
+          >
+            Explore API Reference
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-4">
+    Key features
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Everything you need to integrate Shamela's Arabic Islamic texts into your application
+  </p>
+  
+  <CardGroup cols={2}>
+    <Card title="Full Data Lifecycle" icon="database" href="/guides/nodejs-usage">
+      Fetch metadata, download master and book databases, and query results entirely in-memory
+    </Card>
+    <Card title="Runtime Configuration" icon="gear" href="/guides/configuration">
+      Configure API credentials, WASM paths, and custom fetch implementations at runtime
+    </Card>
+    <Card title="Content Processing" icon="text" href="/guides/content-processing">
+      Parse, sanitize, and post-process Arabic book content with utilities tailored for Shamela
+    </Card>
+    <Card title="Environment Aware" icon="layer-group" href="/guides/browser-usage">
+      Automatically selects optimal sql.js WASM bundles for Node.js, browsers, and bundlers
+    </Card>
+    <Card title="Lightweight Export" icon="feather" href="/guides/content-processing">
+      Content-only export for client-side use without sql.js overhead (1.5KB vs 900KB)
+    </Card>
+    <Card title="Flexible Output" icon="file-export" href="/examples/download-book">
+      Support for both JSON and SQLite output formats for downloaded content
+    </Card>
+  </CardGroup>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-4">
+    Quick start
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Get up and running with Shamela in minutes
+  </p>
+  
+  <Steps>
+    <Step title="Install the package">
+      Install Shamela using your preferred package manager:
+      
+      <CodeGroup>
+      ```bash npm
+      npm install shamela
+      ```
+      ```bash yarn
+      yarn add shamela
+      ```
+      ```bash pnpm
+      pnpm add shamela
+      ```
+      ```bash bun
+      bun add shamela
+      ```
+      </CodeGroup>
+    </Step>
+    
+    <Step title="Configure API credentials">
+      Set up your API credentials and endpoints. You'll need to obtain an API key from Shamela.
+      
+      <Warning>
+        This library requires an API key to access Shamela's APIs. For API key inquiries, contact [mail@shamela.ws](mailto:mail@shamela.ws)
+      </Warning>
+      
+      ```typescript
+      import { configure } from 'shamela';
+
+      configure({
+        apiKey: process.env.SHAMELA_API_KEY,
+        booksEndpoint: process.env.SHAMELA_BOOKS_ENDPOINT,
+        masterPatchEndpoint: process.env.SHAMELA_MASTER_ENDPOINT,
+      });
+      ```
+    </Step>
+    
+    <Step title="Download and query book data">
+      Use the library to download books and access their content:
+      
+      ```typescript
+      import { getBook } from 'shamela';
+
+      const book = await getBook(26592);
+      console.log(`Downloaded book with ${book.pages.length} pages`);
+      
+      // Access page content
+      book.pages.forEach(page => {
+        console.log(page.content);
+      });
+      ```
+    </Step>
+  </Steps>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-4">
+    Explore by use case
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Learn how to use Shamela in different environments and scenarios
+  </p>
+  
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <a href="/guides/nodejs-usage" className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#2D5F3F] dark:hover:border-[#2D5F3F] overflow-hidden no-underline transition-colors bg-white dark:bg-[#1a1d27]">
+      <div className="p-6">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">Node.js Usage</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Learn how to use Shamela in standard Node.js environments with automatic WASM detection
+        </p>
+        <div className="flex items-center text-sm font-medium text-gray-600 dark:text-gray-400 group-hover:text-[#2D5F3F] dark:group-hover:text-[#4A9D6E] transition-colors">
+          View guide
+          <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </div>
+    </a>
+    
+    <a href="/guides/nextjs-usage" className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#2D5F3F] dark:hover:border-[#2D5F3F] overflow-hidden no-underline transition-colors bg-white dark:bg-[#1a1d27]">
+      <div className="p-6">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">Next.js Integration</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Configure Shamela for Next.js with proper WASM handling and server-side setup
+        </p>
+        <div className="flex items-center text-sm font-medium text-gray-600 dark:text-gray-400 group-hover:text-[#2D5F3F] dark:group-hover:text-[#4A9D6E] transition-colors">
+          View guide
+          <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </div>
+    </a>
+    
+    <a href="/guides/browser-usage" className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#2D5F3F] dark:hover:border-[#2D5F3F] overflow-hidden no-underline transition-colors bg-white dark:bg-[#1a1d27]">
+      <div className="p-6">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">Browser Usage</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Use Shamela in browsers with CDN-hosted WASM or lightweight content utilities
+        </p>
+        <div className="flex items-center text-sm font-medium text-gray-600 dark:text-gray-400 group-hover:text-[#2D5F3F] dark:group-hover:text-[#4A9D6E] transition-colors">
+          View guide
+          <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </div>
+    </a>
+    
+    <a href="/guides/content-processing" className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#2D5F3F] dark:hover:border-[#2D5F3F] overflow-hidden no-underline transition-colors bg-white dark:bg-[#1a1d27]">
+      <div className="p-6">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">Content Processing</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Process and transform Arabic content with utilities for parsing, sanitization, and Markdown conversion
+        </p>
+        <div className="flex items-center text-sm font-medium text-gray-600 dark:text-gray-400 group-hover:text-[#2D5F3F] dark:group-hover:text-[#4A9D6E] transition-colors">
+          View guide
+          <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-gradient-to-br from-[#2D5F3F]/5 to-[#4A9D6E]/5 dark:from-[#1A3D28]/20 dark:to-[#2D5F3F]/20 p-8">
+    <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+      Ready to get started?
+    </h2>
+    <p className="text-base text-gray-600 dark:text-gray-400 mb-6">
+      Follow our quickstart guide to integrate Shamela into your application in minutes
+    </p>
+    <a 
+      href="/quickstart" 
+      className="inline-flex items-center px-6 py-3 rounded-lg bg-[#2D5F3F] text-white font-semibold hover:bg-[#1A3D28] transition-colors"
+    >
+      View quickstart guide
+    </a>
+  </div>
+</div>

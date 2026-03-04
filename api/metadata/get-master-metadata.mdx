@@ -1,0 +1,82 @@
+---
+title: 'getMasterMetadata'
+description: 'Retrieves metadata for the master database from the Shamela API'
+---
+
+## Overview
+
+The master database contains information about all books, authors, and categories in the Shamela library. This function fetches the download URL and version information for the master database patches.
+
+## Function Signature
+
+```typescript
+getMasterMetadata(version?: number): Promise<GetMasterMetadataResponsePayload>
+```
+
+## Parameters
+
+<ParamField path="version" type="number" default="0">
+  The version number to check for updates. Pass 0 (or omit) to get the latest version.
+</ParamField>
+
+## Returns
+
+<ResponseField name="GetMasterMetadataResponsePayload" type="object">
+  Master database metadata including download URL and version
+  
+  <Expandable title="properties">
+    <ResponseField name="url" type="string" required>
+      Download URL for the master database patch
+    </ResponseField>
+    
+    <ResponseField name="version" type="number" required>
+      Latest version number of the master database
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Examples
+
+### Get Latest Metadata
+
+```typescript
+import { getMasterMetadata } from 'shamela';
+
+const metadata = await getMasterMetadata();
+console.log(metadata.url);     // URL to download master database patch
+console.log(metadata.version); // Latest version number
+```
+
+### Check for Updates
+
+```typescript
+const currentVersion = 5;
+const updates = await getMasterMetadata(currentVersion);
+
+if (updates.version > currentVersion) {
+  console.log(`Update available: ${updates.version}`);
+  console.log(`Download from: ${updates.url}`);
+}
+```
+
+## Error Handling
+
+<Warning>
+  This function throws an error when:
+  - Required environment variables are not set
+  - API request fails
+  - Network connection issues occur
+</Warning>
+
+```typescript
+try {
+  const metadata = await getMasterMetadata();
+} catch (error) {
+  console.error('Failed to fetch master metadata:', error.message);
+}
+```
+
+## Related Functions
+
+- [downloadMasterDatabase](/api/metadata/download-master-database) - Download the master database using this metadata
+- [getMaster](/api/data/get-master) - Retrieve master data as a JavaScript object

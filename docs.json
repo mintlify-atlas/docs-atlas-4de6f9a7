@@ -1,122 +1,108 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Shamela",
+  "theme": "palm",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#2D5F3F",
+    "light": "#4A9D6E",
+    "dark": "#1A3D28"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/ragaeeb/shamela"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/ragaeeb/shamela"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "introduction",
+              "installation",
+              "quickstart"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Guides",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "guides/configuration",
+              "guides/nodejs-usage",
+              "guides/nextjs-usage",
+              "guides/browser-usage",
+              "guides/content-processing"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Examples",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "examples/download-master",
+              "examples/download-book",
+              "examples/retrieve-data",
+              "examples/content-utilities"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Configuration",
             "pages": [
-              "api-reference/introduction"
+              "api/configuration/configure",
+              "api/configuration/reset-config",
+              "api/configuration/get-config"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Metadata & Downloads",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/metadata/get-master-metadata",
+              "api/metadata/download-master-database",
+              "api/metadata/get-book-metadata",
+              "api/metadata/download-book",
+              "api/metadata/get-cover-url"
+            ]
+          },
+          {
+            "group": "Data Access",
+            "pages": [
+              "api/data/get-book",
+              "api/data/get-master",
+              "api/data/denormalize-books"
+            ]
+          },
+          {
+            "group": "Content Utilities",
+            "pages": [
+              "api/content/parse-content-robust",
+              "api/content/map-page-character-content",
+              "api/content/split-page-body-from-footer",
+              "api/content/remove-arabic-numeric-page-markers",
+              "api/content/remove-tags-except-span",
+              "api/content/html-processing",
+              "api/content/markdown-conversion"
+            ]
+          },
+          {
+            "group": "Types",
+            "pages": [
+              "api/types/book-data",
+              "api/types/master-data",
+              "api/types/configuration"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

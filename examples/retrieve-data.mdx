@@ -1,0 +1,276 @@
+---
+title: Retrieve Data
+description: Examples of retrieving book and master data as JavaScript objects
+---
+
+Retrieve data directly as JavaScript objects without writing to disk.
+
+## Retrieve Book Data
+
+Get complete book data including pages and titles:
+
+```typescript
+import { getBook } from 'shamela';
+
+const book = await getBook(26592);
+
+console.log(`Book has ${book.pages.length} pages`);
+console.log(`Book has ${book.titles?.length || 0} title entries`);
+```
+
+<Accordion title="BookData Structure">
+
+```typescript
+type BookData = {
+  pages: Page[];
+  titles: Title[];
+};
+
+type Page = {
+  id: number;
+  content: string;
+  part?: string;
+  page?: number;
+  number?: string;
+};
+
+type Title = {
+  id: number;
+  content: string;
+  page: number;
+  parent?: number;
+};
+```
+
+</Accordion>
+
+## Access Page Content
+
+Iterate through pages and process content:
+
+```typescript
+import { getBook } from 'shamela';
+
+const book = await getBook(26592);
+
+// Access first page
+const firstPage = book.pages[0];
+console.log(firstPage.content.substring(0, 100));
+
+// Process all pages
+book.pages.forEach((page, index) => {
+  console.log(`Page ${index + 1} (ID: ${page.id}):`);
+  console.log(`  Part: ${page.part || 'N/A'}`);
+  console.log(`  Page number: ${page.page || 'N/A'}`);
+  console.log(`  Content length: ${page.content.length} chars`);
+});
+```
+
+## Display Table of Contents
+
+Show the book's hierarchical structure:
+
+```typescript
+import { getBook } from 'shamela';
+
+const book = await getBook(26592);
+
+// Display table of contents
+book.titles?.forEach(title => {
+  const indent = title.parent ? '  ' : '';
+  console.log(`${indent}${title.id}: ${title.content} (Page ${title.page})`);
+});
+```
+
+## Retrieve Master Data
+
+Get the complete catalog of books, authors, and categories:
+
+```typescript
+import { getMaster } from 'shamela';
+
+const master = await getMaster();
+
+console.log(`Version: ${master.version}`);
+console.log(`Total books: ${master.books.length}`);
+console.log(`Total authors: ${master.authors.length}`);
+console.log(`Total categories: ${master.categories.length}`);
+```
+
+<Accordion title="MasterData Structure">
+
+```typescript
+type MasterData = {
+  authors: Author[];
+  books: Book[];
+  categories: Category[];
+  version: number;
+};
+
+type Author = {
+  id: number;
+  name: string;
+  death_hijri_year?: number;
+  biography?: string;
+};
+
+type Book = {
+  id: number;
+  name: string;
+  author_id: number;
+  category_id: number;
+  page_count?: number;
+  // ... other fields
+};
+
+type Category = {
+  id: number;
+  name: string;
+  parent_id?: number;
+};
+```
+
+</Accordion>
+
+## Denormalize Master Data
+
+Resolve relationships to get rich book objects:
+
+```typescript
+import { getMaster, denormalizeBooks } from 'shamela/transform';
+
+const master = await getMaster();
+const books = denormalizeBooks(master);
+
+// Access resolved relationships
+const firstBook = books[0];
+console.log(firstBook.name);
+console.log(firstBook.author.name);           // Author object, not ID
+console.log(firstBook.category.name);         // Category object, not ID
+console.log(firstBook.metadata?.date);        // Parsed metadata
+```
+
+<Accordion title="DenormalizedBook Structure">
+
+```typescript
+type DenormalizedBook = {
+  id: number;
+  name: string;
+  author: Author;                   // Resolved from author_id
+  category: Category;               // Resolved from category_id
+  metadata?: ParsedMetadata;        // Parsed from metadata field
+  pdf_links?: ParsedPdfLink[];      // Parsed from pdf_links field
+  page_count?: number;
+  // ... other fields
+};
+```
+
+</Accordion>
+
+## Filter Books by Author
+
+```typescript
+import { getMaster, denormalizeBooks } from 'shamela/transform';
+
+const master = await getMaster();
+const books = denormalizeBooks(master);
+
+// Find all books by a specific author
+const authorName = 'ابن تيمية';
+const authorBooks = books.filter(book => 
+  book.author.name.includes(authorName)
+);
+
+console.log(`Found ${authorBooks.length} books by ${authorName}`);
+authorBooks.forEach(book => {
+  console.log(`- ${book.name} (${book.page_count || 0} pages)`);
+});
+```
+
+## Filter Books by Category
+
+```typescript
+import { getMaster, denormalizeBooks } from 'shamela/transform';
+
+const master = await getMaster();
+const books = denormalizeBooks(master);
+
+// Find all books in a category
+const categoryName = 'التفسير';
+const categoryBooks = books.filter(book => 
+  book.category.name === categoryName
+);
+
+console.log(`Found ${categoryBooks.length} books in ${categoryName}`);
+categoryBooks.forEach(book => {
+  console.log(`- ${book.name} by ${book.author.name}`);
+});
+```
+
+## Search Book Content
+
+Search for specific text within a book:
+
+```typescript
+import { getBook } from 'shamela';
+
+const book = await getBook(26592);
+const searchTerm = 'الإيمان';
+
+// Find pages containing search term
+const matchingPages = book.pages.filter(page => 
+  page.content.includes(searchTerm)
+);
+
+console.log(`Found "${searchTerm}" in ${matchingPages.length} pages`);
+
+// Show first match with context
+if (matchingPages.length > 0) {
+  const firstMatch = matchingPages[0];
+  const index = firstMatch.content.indexOf(searchTerm);
+  const context = firstMatch.content.substring(
+    Math.max(0, index - 50),
+    Math.min(firstMatch.content.length, index + searchTerm.length + 50)
+  );
+  console.log(`Context: ...${context}...`);
+}
+```
+
+## Build Author Index
+
+```typescript
+import { getMaster } from 'shamela';
+
+const master = await getMaster();
+
+// Group books by author
+const authorIndex = new Map<number, { author: Author; bookCount: number }>();
+
+master.books.forEach(book => {
+  const author = master.authors.find(a => a.id === book.author_id);
+  if (author) {
+    const existing = authorIndex.get(author.id);
+    if (existing) {
+      existing.bookCount++;
+    } else {
+      authorIndex.set(author.id, { author, bookCount: 1 });
+    }
+  }
+});
+
+// Find most prolific authors
+const topAuthors = Array.from(authorIndex.values())
+  .sort((a, b) => b.bookCount - a.bookCount)
+  .slice(0, 10);
+
+console.log('Top 10 authors by book count:');
+topAuthors.forEach(({ author, bookCount }, index) => {
+  console.log(`${index + 1}. ${author.name}: ${bookCount} books`);
+});
+```
+
+## Related Functions
+
+- [downloadBook](/api-reference/metadata-downloads/download-book) - Download book to disk
+- [downloadMasterDatabase](/api-reference/metadata-downloads/download-master-database) - Download master database to disk
+- [denormalizeBooks](/api-reference/data-access/denormalize-books) - Resolve relationships in master data

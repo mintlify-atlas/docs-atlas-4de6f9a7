@@ -1,80 +1,213 @@
 ---
 title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+description: "Get started with Shamela in minutes"
 ---
 
-## Get started in three steps
+<Warning>
+  **API Key Required**: You need a valid Shamela API key before proceeding. 
+  
+  Request your API key by emailing [mail@shamela.ws](mailto:mail@shamela.ws).
+</Warning>
 
-Get your documentation site running locally and make your first customization.
+## Configuration
 
-### Step 1: Set up your local environment
+Before using the library, configure it with your API credentials and endpoint URLs.
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+### Standard Node.js
 
-### Step 2: Deploy your changes
+For non-bundled Node.js environments, the WASM file is auto-detected:
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+```typescript
+import { configure, getBook } from 'shamela';
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+// Configure API credentials
+configure({
+  apiKey: process.env.SHAMELA_API_KEY,
+  booksEndpoint: process.env.SHAMELA_BOOKS_ENDPOINT,
+  masterPatchEndpoint: process.env.SHAMELA_MASTER_ENDPOINT,
+  // sqlJsWasmUrl is auto-detected in standard Node.js
+});
+```
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+### Next.js / Bundled Environments
 
-### Step 3: Go live
+For Next.js, webpack, Turbopack, and other bundlers, you must explicitly configure the WASM file path.
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+<Steps>
+  <Step title="Update next.config.ts">
+    Add the required external packages:
+
+    ```typescript
+    import type { NextConfig } from 'next';
+
+    const nextConfig: NextConfig = {
+      serverExternalPackages: ['shamela', 'sql.js'],
+      // ... rest of your config
+    };
+
+    export default nextConfig;
+    ```
+  </Step>
+
+  <Step title="Create a server-only configuration file">
+    Create `lib/shamela-server.ts`:
+
+    ```typescript
+    import { configure } from 'shamela';
+    import { join } from 'node:path';
+
+    configure({
+      sqlJsWasmUrl: join(process.cwd(), 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm'),
+      apiKey: process.env.SHAMELA_API_KEY,
+      booksEndpoint: process.env.SHAMELA_BOOKS_ENDPOINT,
+      masterPatchEndpoint: process.env.SHAMELA_MASTER_ENDPOINT,
+    });
+
+    export { downloadBook, getBook, getBookMetadata, getMaster, downloadMasterDatabase } from 'shamela';
+    ```
+  </Step>
+
+  <Step title="Use in Server Actions">
+    Import from your configuration file in server-side code:
+
+    ```typescript
+    'use server';
+
+    import { getBookMetadata, downloadBook } from '@/lib/shamela-server';
+
+    export async function downloadBookAction(bookId: number) {
+      const metadata = await getBookMetadata(bookId);
+      return await downloadBook(bookId, {
+        bookMetadata: metadata,
+        outputFile: { path: `./books/${bookId}.db` }
+      });
+    }
+    ```
+
+    <Warning>
+      Only import `shamela` in server-side code (Server Actions, API Routes, or Server Components). 
+      Never import in client components or `layout.tsx`.
+    </Warning>
+  </Step>
+</Steps>
+
+### Browser Environments
+
+In browsers, the library automatically uses a CDN-hosted WASM file:
+
+```typescript
+import { configure, getBook } from 'shamela';
+
+configure({
+  apiKey: 'your-api-key',
+  booksEndpoint: 'https://shamela.ws/api/books',
+  masterPatchEndpoint: 'https://shamela.ws/api/master_patch',
+  // Automatically uses CDN: https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/sql-wasm.wasm
+});
+```
+
+## Your first API call
+
+Once configured, you can start using the Shamela API.
+
+### Download a book
+
+Download a complete book with all pages and titles:
+
+```typescript
+import { getBook } from 'shamela';
+
+const book = await getBook(26592);
+
+console.log(`Downloaded book with ${book.pages.length} pages`);
+console.log(`Table of contents has ${book.titles.length} entries`);
+
+// Access page content
+const firstPage = book.pages[0];
+console.log(firstPage.content);
+```
+
+### Get master database
+
+Retrieve the complete library catalog with all books, authors, and categories:
+
+```typescript
+import { getMaster } from 'shamela';
+
+const master = await getMaster();
+
+console.log(`Version: ${master.version}`);
+console.log(`Total books: ${master.books.length}`);
+console.log(`Total authors: ${master.authors.length}`);
+console.log(`Total categories: ${master.categories.length}`);
+```
+
+### Download to file
+
+Export books or master data to JSON or SQLite files:
+
+```typescript
+import { downloadBook, downloadMasterDatabase } from 'shamela';
+
+// Download book as JSON
+await downloadBook(26592, {
+  outputFile: { path: './book.json' }
+});
+
+// Download book as SQLite database
+await downloadBook(26592, {
+  outputFile: { path: './book.db' }
+});
+
+// Download master database
+await downloadMasterDatabase({
+  outputFile: { path: './master.db' }
+});
+```
+
+## Content processing
+
+For client-side or lightweight use cases where you only need content utilities without database functionality, use the `shamela/content` export:
+
+```typescript
+import {
+  mapPageCharacterContent,
+  splitPageBodyFromFooter,
+  removeTagsExceptSpan,
+  htmlToMarkdown,
+} from 'shamela/content';
+
+// Process content without loading sql.js (~1.5KB gzipped vs ~900KB)
+const normalized = mapPageCharacterContent(rawContent);
+const cleaned = removeTagsExceptSpan(normalized);
+const [body, footnotes] = splitPageBodyFromFooter(cleaned);
+const markdown = htmlToMarkdown(body);
+```
+
+<Info>
+  The `shamela/content` export is ideal for React/Next.js client components where you want to process pre-downloaded book data without loading the full sql.js WASM bundle.
+</Info>
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
+Explore the API reference to learn about all available functions:
 
 <CardGroup cols={2}>
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
+<Card title="Configuration" icon="gear" href="/api/configuration/configure">
+  Learn about configuration options and environment variables
 </Card>
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
+<Card title="Metadata & Downloads" icon="download" href="/api/metadata/get-book-metadata">
+  Download books and master databases
 </Card>
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
+<Card title="Content Utilities" icon="wand-magic-sparkles" href="/api/content/parse-content-robust">
+  Process and transform Arabic book content
 </Card>
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
+<Card title="Data Structures" icon="database" href="/api/types/book-data">
+  Understand the data types returned by the API
 </Card>
 
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

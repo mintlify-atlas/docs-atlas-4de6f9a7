@@ -1,0 +1,533 @@
+---
+title: Content Processing
+description: Parse, sanitize, and transform Shamela book content
+---
+
+## Overview
+
+Shamela provides comprehensive utilities for processing Arabic book content, including HTML parsing, text normalization, footnote extraction, and Markdown conversion.
+
+## Importing Content Utilities
+
+Content utilities are available from `shamela/content` for lightweight client-side usage:
+
+```typescript
+import {
+  parseContentRobust,
+  mapPageCharacterContent,
+  splitPageBodyFromFooter,
+  removeArabicNumericPageMarkers,
+  removeTagsExceptSpan,
+  normalizeLineEndings,
+  stripHtmlTags,
+  htmlToMarkdown,
+  normalizeHtml,
+  normalizeTitleSpans,
+  moveContentAfterLineBreakIntoSpan,
+  convertContentToMarkdown,
+} from 'shamela/content';
+```
+
+## Parsing Content
+
+### parseContentRobust()
+
+Parses Shamela HTML content into structured lines while preserving title hierarchy and Arabic punctuation.
+
+```typescript
+import { parseContentRobust } from 'shamela/content';
+import type { Line } from 'shamela/content';
+
+const html = `
+  <span data-type="title" id="toc-123">باب الأول</span>
+  بعض المحتوى هنا
+  <span data-type="title" id="toc-124">باب الثاني</span>
+  المزيد من المحتوى
+`;
+
+const lines = parseContentRobust(html);
+lines.forEach((line) => console.log(line.id, line.text));
+// Output:
+// 123 "باب الأول"
+// undefined "بعض المحتوى هنا"
+// 124 "باب الثاني"
+// undefined "المزيد من المحتوى"
+```
+
+**Line Type:**
+
+```typescript
+type Line = {
+  id?: string;  // Title ID from data-type="title" spans
+  text: string; // Text content
+};
+```
+
+<Note>
+`parseContentRobust()` automatically merges punctuation-only lines into preceding titles and normalizes line endings.
+</Note>
+
+## Text Normalization
+
+### mapPageCharacterContent()
+
+Normalizes page content by applying regex-based replacement rules tuned for Shamela sources.
+
+```typescript
+import { mapPageCharacterContent } from 'shamela/content';
+
+const raw = 'نص عربي مع علامات';
+const normalized = mapPageCharacterContent(raw);
+console.log(normalized);
+```
+
+**With Custom Rules:**
+
+```typescript
+import { mapPageCharacterContent } from 'shamela/content';
+import { DEFAULT_MAPPING_RULES } from 'shamela/constants';
+
+const customRules = {
+  ...DEFAULT_MAPPING_RULES,
+  'pattern1': 'replacement1',
+  'pattern2': 'replacement2',
+};
+
+const processed = mapPageCharacterContent(rawContent, customRules);
+```
+
+### normalizeLineEndings()
+
+Normalizes line endings to Unix-style (`\n`). Converts Windows (`\r\n`) and old Mac (`\r`) line endings.
+
+```typescript
+import { normalizeLineEndings } from 'shamela/content';
+
+const windowsText = 'Line 1\r\nLine 2\r\nLine 3';
+const normalized = normalizeLineEndings(windowsText);
+// => "Line 1\nLine 2\nLine 3"
+```
+
+### removeArabicNumericPageMarkers()
+
+Removes Arabic numeral markers enclosed in ⦗ ⦘ brackets.
+
+```typescript
+import { removeArabicNumericPageMarkers } from 'shamela/content';
+
+const text = 'نص عربي ⦗١٢٣⦘ مع علامات الصفحة';
+const cleaned = removeArabicNumericPageMarkers(text);
+// => "نص عربي   مع علامات الصفحة"
+```
+
+## Footnote Processing
+
+### splitPageBodyFromFooter()
+
+Separates page body content from trailing footnotes using the default Shamela marker.
+
+```typescript
+import { splitPageBodyFromFooter } from 'shamela/content';
+
+const content = 'Main content here#\r[الهامش]\rFootnote 1\rFootnote 2';
+const [body, footnotes] = splitPageBodyFromFooter(content);
+
+console.log('Body:', body);
+// => "Main content here"
+
+console.log('Footnotes:', footnotes);
+// => "Footnote 1\rFootnote 2"
+```
+
+**Custom Marker:**
+
+```typescript
+const [body, footnotes] = splitPageBodyFromFooter(content, '---NOTES---');
+```
+
+<Note>
+The default marker is `#\r[الهامش]\r` which indicates the start of footnotes in Shamela content.
+</Note>
+
+## HTML Processing
+
+### removeTagsExceptSpan()
+
+Removes anchor and hadeeth tags while preserving nested `<span>` elements.
+
+```typescript
+import { removeTagsExceptSpan } from 'shamela/content';
+
+const html = `
+  <a href="inr://123">narrator</a>
+  <hadeeth-1>hadeeth content</hadeeth>
+  <span data-type="title">Title</span>
+`;
+
+const cleaned = removeTagsExceptSpan(html);
+// => "narrator hadeeth content <span data-type=\"title\">Title</span>"
+```
+
+### stripHtmlTags()
+
+Strips all HTML tags from content, keeping only text.
+
+```typescript
+import { stripHtmlTags } from 'shamela/content';
+
+const html = '<span data-type="title">Chapter</span><p>Content</p>';
+const text = stripHtmlTags(html);
+// => "ChapterContent"
+```
+
+### normalizeHtml()
+
+Normalizes Shamela HTML for CSS styling by converting `<hadeeth-N>` tags to `<span class="hadeeth">`.
+
+```typescript
+import { normalizeHtml } from 'shamela/content';
+
+const html = '<hadeeth-1>text</hadeeth>';
+const normalized = normalizeHtml(html);
+// => "<span class=\"hadeeth\">text</span>"
+```
+
+## Title Span Processing
+
+### normalizeTitleSpans()
+
+Normalizes consecutive Shamela-style title spans. Shamela exports sometimes contain adjacent title spans that would produce multiple headings on one line when converted to Markdown.
+
+```typescript
+import { normalizeTitleSpans } from 'shamela/content';
+
+const html = '<span data-type="title">باب الميم</span><span data-type="title">من اسمه محمد</span>';
+```
+
+**Strategy: splitLines (recommended)**
+
+```typescript
+const split = normalizeTitleSpans(html, { strategy: 'splitLines' });
+// => "<span data-type=\"title\">باب الميم</span>\n<span data-type=\"title\">من اسمه محمد</span>"
+```
+
+**Strategy: merge**
+
+```typescript
+const merged = normalizeTitleSpans(html, { 
+  strategy: 'merge',
+  separator: ' — '
+});
+// => "<span data-type=\"title\">باب الميم — من اسمه محمد</span>"
+```
+
+**Strategy: hierarchy**
+
+```typescript
+const hierarchy = normalizeTitleSpans(html, { strategy: 'hierarchy' });
+// => "<span data-type=\"title\">باب الميم</span>\n<span data-type=\"subtitle\">من اسمه محمد</span>"
+```
+
+**Options Type:**
+
+```typescript
+type NormalizeTitleSpanOptions = {
+  strategy: 'splitLines' | 'merge' | 'hierarchy';
+  separator?: string; // Default: ' — '
+};
+```
+
+### moveContentAfterLineBreakIntoSpan()
+
+Moves content that appears after a line break but before a title span into the span.
+
+```typescript
+import { moveContentAfterLineBreakIntoSpan } from 'shamela/content';
+
+const html = '\r١ - <span data-type="title">الباب الأول</span>';
+const moved = moveContentAfterLineBreakIntoSpan(html);
+// => "\r<span data-type=\"title\">١ - الباب الأول</span>"
+```
+
+<Tip>
+This is useful when chapter numbers or prefixes are placed outside the title span in the source HTML.
+</Tip>
+
+## Markdown Conversion
+
+### htmlToMarkdown()
+
+Converts Shamela HTML to Markdown format. Title spans (`<span data-type="title">`) become `##` headers.
+
+```typescript
+import { htmlToMarkdown } from 'shamela/content';
+
+const html = `
+  <span data-type="title">Chapter One</span>
+  Some content here
+  <a href="inr://123">narrator link</a>
+`;
+
+const markdown = htmlToMarkdown(html);
+// => "## Chapter One\nSome content here\nnarrator link"
+```
+
+**Transformations:**
+- `<span data-type="title">text</span>` → `## text`
+- `<a href="inr://...">text</a>` → `text` (strip narrator links)
+- All other HTML tags → stripped
+
+### convertContentToMarkdown()
+
+Converts Shamela HTML to Markdown using the recommended transformation pipeline:
+
+1. Normalizes consecutive title spans
+2. Moves pre-title text into spans
+3. Converts to Markdown format
+
+```typescript
+import { convertContentToMarkdown } from 'shamela/content';
+
+const html = '<span data-type="title">كتاب</span><span data-type="title">الإيمان</span>';
+const markdown = convertContentToMarkdown(html);
+// => "## كتاب\n## الإيمان"
+```
+
+**With Custom Options:**
+
+```typescript
+const markdown = convertContentToMarkdown(html, {
+  strategy: 'merge',
+  separator: ' | '
+});
+// => "## كتاب | الإيمان"
+```
+
+<Note>
+This is a convenience function that applies the recommended sequence of transformations for most use cases.
+</Note>
+
+## Complete Processing Pipeline
+
+Here's a complete example processing a Shamela page:
+
+```typescript
+import { getBook } from 'shamela';
+import {
+  mapPageCharacterContent,
+  splitPageBodyFromFooter,
+  removeTagsExceptSpan,
+  removeArabicNumericPageMarkers,
+  parseContentRobust,
+  htmlToMarkdown,
+} from 'shamela/content';
+
+const book = await getBook(26592);
+const page = book.pages[0];
+
+// 1. Normalize characters
+let content = mapPageCharacterContent(page.content);
+
+// 2. Remove unwanted tags
+content = removeTagsExceptSpan(content);
+
+// 3. Remove page markers
+content = removeArabicNumericPageMarkers(content);
+
+// 4. Split body and footnotes
+const [body, footnotes] = splitPageBodyFromFooter(content);
+
+// 5. Parse into structured lines
+const lines = parseContentRobust(body);
+
+// 6. Convert to markdown (alternative to parsing)
+const markdown = htmlToMarkdown(body);
+
+console.log('Lines:', lines);
+console.log('Markdown:', markdown);
+console.log('Footnotes:', footnotes);
+```
+
+## React Component Example
+
+```typescript
+'use client';
+
+import { parseContentRobust, removeTagsExceptSpan } from 'shamela/content';
+import type { Line } from 'shamela/content';
+
+interface BookPageProps {
+  content: string;
+}
+
+export function BookPage({ content }: BookPageProps) {
+  const clean = removeTagsExceptSpan(content);
+  const lines = parseContentRobust(clean);
+  
+  return (
+    <article>
+      {lines.map((line, index) => {
+        if (line.id) {
+          return (
+            <h2 key={index} id={`title-${line.id}`}>
+              {line.text}
+            </h2>
+          );
+        }
+        return (
+          <p key={index}>
+            {line.text}
+          </p>
+        );
+      })}
+    </article>
+  );
+}
+```
+
+## Custom Processing Rules
+
+Extend the default mapping rules:
+
+```typescript
+import { mapPageCharacterContent } from 'shamela/content';
+import { DEFAULT_MAPPING_RULES } from 'shamela/constants';
+
+// Create custom rules
+const customRules = {
+  ...DEFAULT_MAPPING_RULES,
+  // Add your custom patterns
+  '\\[\\d+\\]': '', // Remove [1], [2], etc.
+  '\\s+': ' ',       // Normalize whitespace
+};
+
+// Apply custom rules
+const processed = mapPageCharacterContent(content, customRules);
+```
+
+## TypeScript Types
+
+All content utilities include full type definitions:
+
+```typescript
+import type {
+  Line,
+  NormalizeTitleSpanOptions,
+} from 'shamela/content';
+
+type Line = {
+  id?: string;
+  text: string;
+};
+
+type NormalizeTitleSpanOptions = {
+  strategy: 'splitLines' | 'merge' | 'hierarchy';
+  separator?: string;
+};
+```
+
+## Performance Considerations
+
+<Tip>
+Content utilities are optimized for performance:
+- Regular expressions are pre-compiled
+- Fast path detection for plain text
+- Minimal allocations during parsing
+</Tip>
+
+<Note>
+For batch processing, consider processing pages in parallel:
+
+```typescript
+const processedPages = await Promise.all(
+  book.pages.map(async (page) => {
+    const content = mapPageCharacterContent(page.content);
+    const [body, footnotes] = splitPageBodyFromFooter(content);
+    return { body, footnotes };
+  })
+);
+```
+</Note>
+
+## Common Patterns
+
+### Extract Table of Contents
+
+```typescript
+import { parseContentRobust } from 'shamela/content';
+
+function extractTOC(pages: Page[]): Array<{ id: string; title: string; page: number }> {
+  const toc: Array<{ id: string; title: string; page: number }> = [];
+  
+  pages.forEach((page, pageIndex) => {
+    const lines = parseContentRobust(page.content);
+    lines.forEach(line => {
+      if (line.id) {
+        toc.push({
+          id: line.id,
+          title: line.text,
+          page: pageIndex + 1,
+        });
+      }
+    });
+  });
+  
+  return toc;
+}
+```
+
+### Search Within Content
+
+```typescript
+import { stripHtmlTags, normalizeLineEndings } from 'shamela/content';
+
+function searchContent(pages: Page[], query: string): Array<{ page: number; context: string }> {
+  const results: Array<{ page: number; context: string }> = [];
+  const normalizedQuery = query.toLowerCase();
+  
+  pages.forEach((page, index) => {
+    const text = stripHtmlTags(normalizeLineEndings(page.content));
+    const lower = text.toLowerCase();
+    
+    if (lower.includes(normalizedQuery)) {
+      const position = lower.indexOf(normalizedQuery);
+      const start = Math.max(0, position - 50);
+      const end = Math.min(text.length, position + 50);
+      const context = text.substring(start, end);
+      
+      results.push({ page: index + 1, context });
+    }
+  });
+  
+  return results;
+}
+```
+
+## Best Practices
+
+<Tip>
+**Use the pipeline approach**: Process content in stages for better maintainability and debugging.
+</Tip>
+
+<Tip>
+**Normalize early**: Apply character mapping and line ending normalization before other transformations.
+</Tip>
+
+<Warning>
+**Preserve spans**: Use `removeTagsExceptSpan()` instead of `stripHtmlTags()` when you need to preserve title metadata.
+</Warning>
+
+<Note>
+**Choose the right strategy**: Use `splitLines` for most cases, `merge` for compact displays, and `hierarchy` for nested navigation.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Browser Usage" icon="globe" href="/guides/browser-usage">
+    Using content utilities in browsers
+  </Card>
+  <Card title="Next.js Usage" icon="react" href="/guides/nextjs-usage">
+    Client-side content processing in Next.js
+  </Card>
+</CardGroup>

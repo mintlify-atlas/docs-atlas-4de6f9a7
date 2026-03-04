@@ -1,0 +1,257 @@
+---
+title: Runtime Configuration
+description: Configure API credentials, WASM paths, and custom implementations
+---
+
+## Overview
+
+Shamela provides runtime configuration through the `configure()` function, allowing you to set API credentials, customize WASM file locations, override fetch implementations, and configure logging.
+
+## Configuration Methods
+
+### configure()
+
+Initializes runtime configuration including API credentials, custom fetch implementations, sql.js WASM location, and logger overrides.
+
+```typescript
+import { configure } from 'shamela';
+
+configure({
+  apiKey: process.env.SHAMELA_API_KEY!,
+  booksEndpoint: process.env.SHAMELA_BOOKS_ENDPOINT!,
+  masterPatchEndpoint: process.env.SHAMELA_MASTER_ENDPOINT!,
+});
+```
+
+### getConfig()
+
+Returns the merged configuration snapshot combining runtime overrides with environment variables.
+
+```typescript
+import { getConfig } from 'shamela';
+
+const config = getConfig();
+console.log(config.apiKey);
+console.log(config.sqlJsWasmUrl);
+```
+
+### getConfigValue()
+
+Reads a single configuration value without throwing when it is missing.
+
+```typescript
+import { getConfigValue } from 'shamela';
+
+const apiKey = getConfigValue('apiKey');
+if (!apiKey) {
+  console.warn('API key not configured');
+}
+```
+
+### requireConfigValue()
+
+Retrieves a configuration entry and throws an error if the value is not present.
+
+```typescript
+import { requireConfigValue } from 'shamela';
+
+try {
+  const endpoint = requireConfigValue('booksEndpoint');
+  console.log('Books endpoint:', endpoint);
+} catch (error) {
+  console.error('Missing required configuration:', error.message);
+}
+```
+
+### resetConfig()
+
+Clears runtime overrides and restores the default silent logger. Use this in tests or long-running processes when you need a clean configuration slate.
+
+```typescript
+import { resetConfig } from 'shamela';
+
+// Reset to defaults
+resetConfig();
+```
+
+## Configuration Options
+
+### ShamelaConfig Type
+
+All available configuration options:
+
+```typescript
+type ShamelaConfig = {
+  /** API key used to authenticate against Shamela services */
+  apiKey?: string;
+  
+  /** Endpoint used for book metadata */
+  booksEndpoint?: string;
+  
+  /** Endpoint used for master metadata */
+  masterPatchEndpoint?: string;
+  
+  /** Optional override for the sql.js wasm asset location */
+  sqlJsWasmUrl?: string;
+  
+  /** Optional custom fetch implementation for environments without a global fetch */
+  fetchImplementation?: typeof fetch;
+};
+```
+
+## Environment Variables
+
+Configuration values are automatically read from environment variables when available:
+
+| Config Key | Environment Variable |
+|------------|----------------------|
+| `apiKey` | `SHAMELA_API_KEY` |
+| `booksEndpoint` | `SHAMELA_API_BOOKS_ENDPOINT` |
+| `masterPatchEndpoint` | `SHAMELA_API_MASTER_PATCH_ENDPOINT` |
+| `sqlJsWasmUrl` | `SHAMELA_SQLJS_WASM_URL` |
+
+<Note>
+Runtime configuration set via `configure()` takes precedence over environment variables.
+</Note>
+
+## Custom Fetch Implementation
+
+For environments without a global `fetch` function, you can provide a custom implementation:
+
+```typescript
+import { configure } from 'shamela';
+import nodeFetch from 'node-fetch';
+
+configure({
+  fetchImplementation: nodeFetch as unknown as typeof fetch,
+  apiKey: process.env.SHAMELA_API_KEY,
+});
+```
+
+## Custom Logger
+
+Override the default silent logger with your own implementation:
+
+```typescript
+import { configure } from 'shamela';
+
+const customLogger = {
+  debug: (message: string) => console.debug(`[DEBUG] ${message}`),
+  error: (message: string) => console.error(`[ERROR] ${message}`),
+  info: (message: string) => console.info(`[INFO] ${message}`),
+  warn: (message: string) => console.warn(`[WARN] ${message}`),
+};
+
+configure({
+  logger: customLogger,
+  apiKey: process.env.SHAMELA_API_KEY,
+});
+```
+
+## WASM Configuration
+
+### Auto-Detection (Node.js)
+
+In standard Node.js environments, the WASM file is automatically detected:
+
+```typescript
+import { configure } from 'shamela';
+
+configure({
+  apiKey: process.env.SHAMELA_API_KEY,
+  booksEndpoint: process.env.SHAMELA_BOOKS_ENDPOINT,
+  masterPatchEndpoint: process.env.SHAMELA_MASTER_ENDPOINT,
+  // sqlJsWasmUrl is auto-detected
+});
+```
+
+### Explicit Configuration (Bundlers)
+
+For bundled environments like Next.js or webpack, explicitly set the WASM path:
+
+```typescript
+import { configure } from 'shamela';
+import { join } from 'node:path';
+
+configure({
+  sqlJsWasmUrl: join(
+    process.cwd(),
+    'node_modules',
+    'sql.js',
+    'dist',
+    'sql-wasm.wasm'
+  ),
+  apiKey: process.env.SHAMELA_API_KEY,
+  booksEndpoint: process.env.SHAMELA_BOOKS_ENDPOINT,
+  masterPatchEndpoint: process.env.SHAMELA_MASTER_ENDPOINT,
+});
+```
+
+### Browser CDN (Auto)
+
+In browsers, the library automatically uses a CDN-hosted WASM file:
+
+```typescript
+import { configure } from 'shamela';
+
+configure({
+  apiKey: 'your-api-key',
+  booksEndpoint: 'https://SHAMELA_INSTANCE.ws/api/books',
+  masterPatchEndpoint: 'https://SHAMELA_INSTANCE.ws/api/master_patch',
+  // Automatically uses: https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/sql-wasm.wasm
+});
+```
+
+## Best Practices
+
+<Tip>
+**Use environment variables** for sensitive credentials like API keys. Never hardcode API keys in your source code.
+</Tip>
+
+<Warning>
+**Configure once at startup**. Call `configure()` once at application initialization, before making any API calls.
+</Warning>
+
+## Troubleshooting
+
+### Missing API Key
+
+If you see an error about missing API key:
+
+```typescript
+// Check if API key is configured
+const apiKey = getConfigValue('apiKey');
+if (!apiKey) {
+  throw new Error('SHAMELA_API_KEY environment variable not set');
+}
+```
+
+### Missing Endpoints
+
+Required endpoints must be configured before making API calls:
+
+```typescript
+import { configure } from 'shamela';
+
+// Configure only the endpoints you need
+configure({
+  apiKey: process.env.SHAMELA_API_KEY,
+  booksEndpoint: process.env.SHAMELA_BOOKS_ENDPOINT,     // Required for book APIs
+  masterPatchEndpoint: process.env.SHAMELA_MASTER_ENDPOINT, // Required for master APIs
+});
+```
+
+### WASM File Not Found
+
+See the [Next.js Usage Guide](/guides/nextjs-usage#troubleshooting) for bundler-specific WASM configuration.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Node.js Usage" icon="node" href="/guides/nodejs-usage">
+    Learn how to use Shamela in Node.js environments
+  </Card>
+  <Card title="Next.js Integration" icon="react" href="/guides/nextjs-usage">
+    Configure Shamela for Next.js applications
+  </Card>
+</CardGroup>

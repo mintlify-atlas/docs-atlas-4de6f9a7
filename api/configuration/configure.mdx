@@ -1,0 +1,166 @@
+---
+title: configure()
+description: Update runtime configuration for the Shamela library
+---
+
+## Function Signature
+
+```typescript
+configure(config: ConfigureOptions): void
+```
+
+Updates the runtime configuration for the library. This function merges the provided options with existing overrides and optionally configures a custom logger implementation.
+
+## Parameters
+
+<ParamField path="config" type="ConfigureOptions" required>
+  Runtime configuration overrides and optional logger instance
+  
+  <Expandable title="ConfigureOptions properties">
+    <ParamField path="apiKey" type="string">
+      API key used to authenticate against Shamela services. Can also be set via `SHAMELA_API_KEY` environment variable.
+    </ParamField>
+    
+    <ParamField path="booksEndpoint" type="string">
+      Endpoint used for book metadata. Can also be set via `SHAMELA_API_BOOKS_ENDPOINT` environment variable.
+      
+      Example: `https://shamela.ws/api/books`
+    </ParamField>
+    
+    <ParamField path="masterPatchEndpoint" type="string">
+      Endpoint used for master metadata. Can also be set via `SHAMELA_API_MASTER_PATCH_ENDPOINT` environment variable.
+      
+      Example: `https://shamela.ws/api/master_patch`
+    </ParamField>
+    
+    <ParamField path="sqlJsWasmUrl" type="string">
+      Optional override for the sql.js WASM asset location. Can also be set via `SHAMELA_SQLJS_WASM_URL` environment variable.
+      
+      - **Standard Node.js**: Auto-detected, no configuration needed
+      - **Bundled environments** (Next.js, webpack): Must be explicitly configured
+      - **Browsers**: Defaults to CDN-hosted WASM file
+    </ParamField>
+    
+    <ParamField path="fetchImplementation" type="typeof fetch">
+      Optional custom fetch implementation for environments without a global fetch.
+      
+      <Note>
+        This option cannot be set via environment variables - it must be provided directly to `configure()`.
+      </Note>
+    </ParamField>
+    
+    <ParamField path="logger" type="Logger">
+      Optional custom logger implementation. Must implement the `Logger` interface with `info()`, `warn()`, and `error()` methods.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Return Value
+
+<ResponseField type="void">
+  This function does not return a value. Configuration is stored internally and accessed by other library functions.
+</ResponseField>
+
+## Examples
+
+### Standard Node.js
+
+```typescript
+import { configure } from 'shamela';
+
+configure({
+  apiKey: process.env.SHAMELA_API_KEY!,
+  booksEndpoint: process.env.SHAMELA_BOOKS_ENDPOINT!,
+  masterPatchEndpoint: process.env.SHAMELA_MASTER_ENDPOINT!,
+  // sqlJsWasmUrl is auto-detected in standard Node.js
+});
+```
+
+### Next.js / Bundled Environments
+
+```typescript
+import { configure } from 'shamela';
+import { join } from 'node:path';
+
+configure({
+  sqlJsWasmUrl: join(process.cwd(), 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm'),
+  apiKey: process.env.SHAMELA_API_KEY!,
+  booksEndpoint: process.env.SHAMELA_BOOKS_ENDPOINT!,
+  masterPatchEndpoint: process.env.SHAMELA_MASTER_ENDPOINT!,
+});
+```
+
+### Browser Environment
+
+```typescript
+import { configure } from 'shamela';
+
+configure({
+  apiKey: 'your-api-key',
+  booksEndpoint: 'https://shamela.ws/api/books',
+  masterPatchEndpoint: 'https://shamela.ws/api/master_patch',
+  // Automatically uses CDN: https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/sql-wasm.wasm
+});
+```
+
+### Custom Fetch Implementation
+
+```typescript
+import { configure } from 'shamela';
+import nodeFetch from 'node-fetch';
+
+configure({
+  apiKey: process.env.SHAMELA_API_KEY!,
+  booksEndpoint: process.env.SHAMELA_BOOKS_ENDPOINT!,
+  masterPatchEndpoint: process.env.SHAMELA_MASTER_ENDPOINT!,
+  fetchImplementation: nodeFetch as unknown as typeof fetch,
+});
+```
+
+### Custom Logger
+
+```typescript
+import { configure } from 'shamela';
+
+const customLogger = {
+  info: (msg: string) => console.log(`[INFO] ${msg}`),
+  warn: (msg: string) => console.warn(`[WARN] ${msg}`),
+  error: (msg: string) => console.error(`[ERROR] ${msg}`),
+};
+
+configure({
+  apiKey: process.env.SHAMELA_API_KEY!,
+  booksEndpoint: process.env.SHAMELA_BOOKS_ENDPOINT!,
+  masterPatchEndpoint: process.env.SHAMELA_MASTER_ENDPOINT!,
+  logger: customLogger,
+});
+```
+
+## Configuration Priority
+
+Configuration values are resolved in the following order (highest to lowest priority):
+
+1. Values passed to `configure()` (runtime overrides)
+2. Environment variables (e.g., `SHAMELA_API_KEY`)
+3. `undefined` (not set)
+
+<Note>
+  The `fetchImplementation` option cannot be set via environment variables and must be provided directly to `configure()`.
+</Note>
+
+## Environment Variables
+
+| Configuration Key | Environment Variable |
+|-------------------|---------------------|
+| `apiKey` | `SHAMELA_API_KEY` |
+| `booksEndpoint` | `SHAMELA_API_BOOKS_ENDPOINT` |
+| `masterPatchEndpoint` | `SHAMELA_API_MASTER_PATCH_ENDPOINT` |
+| `sqlJsWasmUrl` | `SHAMELA_SQLJS_WASM_URL` |
+| `fetchImplementation` | Not available |
+
+## See Also
+
+- [resetConfig()](/api/configuration/reset-config) - Clear runtime configuration
+- [getConfig()](/api/configuration/get-config) - Retrieve current configuration
+- [getConfigValue()](/api/configuration/get-config#getconfigvalue) - Get a single config value
+- [requireConfigValue()](/api/configuration/get-config#requireconfigvalue) - Get a required config value

@@ -1,0 +1,160 @@
+---
+title: resetConfig()
+description: Clear runtime configuration overrides and restore default logger
+---
+
+## Function Signature
+
+```typescript
+resetConfig(): void
+```
+
+Clears runtime configuration overrides and restores the default logger. This function is useful in tests or long-running processes when you need a clean configuration slate.
+
+## Parameters
+
+This function takes no parameters.
+
+## Return Value
+
+<ResponseField type="void">
+  This function does not return a value. It resets the internal configuration state.
+</ResponseField>
+
+## Behavior
+
+When called, `resetConfig()` performs the following actions:
+
+1. Clears all runtime configuration overrides set via [`configure()`](/api/configuration/configure)
+2. Restores the default silent logger
+3. Environment variables remain available for configuration resolution
+
+<Note>
+  `resetConfig()` only clears runtime overrides set via `configure()`. Environment variables like `SHAMELA_API_KEY` will still be read by the library after reset.
+</Note>
+
+## Examples
+
+### Basic Usage
+
+```typescript
+import { configure, resetConfig } from 'shamela';
+
+// Set configuration
+configure({
+  apiKey: 'test-key',
+  booksEndpoint: 'https://shamela.ws/api/books',
+});
+
+// Later, clear the configuration
+resetConfig();
+
+// Configuration is now empty (will fall back to environment variables)
+```
+
+### In Test Suites
+
+```typescript
+import { configure, resetConfig, getBook } from 'shamela';
+import { describe, it, beforeEach, expect } from 'bun:test';
+
+describe('Book API', () => {
+  beforeEach(() => {
+    // Start each test with a clean configuration
+    resetConfig();
+    
+    configure({
+      apiKey: process.env.TEST_API_KEY!,
+      booksEndpoint: process.env.TEST_BOOKS_ENDPOINT!,
+      masterPatchEndpoint: process.env.TEST_MASTER_ENDPOINT!,
+    });
+  });
+  
+  it('should download a book', async () => {
+    const book = await getBook(26592);
+    expect(book.pages.length).toBeGreaterThan(0);
+  });
+});
+```
+
+### Resetting Custom Logger
+
+```typescript
+import { configure, resetConfig } from 'shamela';
+
+const verboseLogger = {
+  info: (msg: string) => console.log(`[INFO] ${msg}`),
+  warn: (msg: string) => console.warn(`[WARN] ${msg}`),
+  error: (msg: string) => console.error(`[ERROR] ${msg}`),
+};
+
+// Configure with verbose logging
+configure({
+  apiKey: process.env.SHAMELA_API_KEY!,
+  logger: verboseLogger,
+});
+
+// Perform operations with verbose logging...
+
+// Reset to default silent logger
+resetConfig();
+
+// Future operations will use the silent logger
+```
+
+### Long-Running Processes
+
+```typescript
+import { configure, resetConfig, getBook } from 'shamela';
+
+async function processBooks(bookIds: number[]) {
+  // Configure for this batch
+  configure({
+    apiKey: process.env.SHAMELA_API_KEY!,
+    booksEndpoint: process.env.SHAMELA_BOOKS_ENDPOINT!,
+  });
+  
+  try {
+    for (const bookId of bookIds) {
+      const book = await getBook(bookId);
+      // Process book...
+    }
+  } finally {
+    // Clean up configuration when done
+    resetConfig();
+  }
+}
+```
+
+## Configuration State After Reset
+
+After calling `resetConfig()`, the library will:
+
+- Have no runtime overrides
+- Read configuration from environment variables (if available)
+- Use the default silent logger
+- Require reconfiguration via `configure()` for runtime overrides
+
+```typescript
+import { configure, resetConfig, getConfig } from 'shamela';
+
+// Set runtime configuration
+configure({
+  apiKey: 'runtime-key',
+  sqlJsWasmUrl: '/custom/path/sql-wasm.wasm',
+});
+
+console.log(getConfig().apiKey); // 'runtime-key'
+
+// Reset configuration
+resetConfig();
+
+console.log(getConfig().apiKey); // undefined or value from SHAMELA_API_KEY env var
+console.log(getConfig().sqlJsWasmUrl); // undefined or value from SHAMELA_SQLJS_WASM_URL env var
+```
+
+## See Also
+
+- [configure()](/api/configuration/configure) - Set runtime configuration
+- [getConfig()](/api/configuration/get-config) - Retrieve current configuration
+- [getConfigValue()](/api/configuration/get-config#getconfigvalue) - Get a single config value

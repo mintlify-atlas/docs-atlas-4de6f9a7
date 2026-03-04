@@ -1,0 +1,102 @@
+---
+title: splitPageBodyFromFooter()
+description: Split page body from trailing footnotes using a marker
+---
+
+## Overview
+
+Separates page body content from trailing footnotes using a marker string. Shamela pages often contain both main content and footnotes separated by a specific marker.
+
+## Signature
+
+```typescript
+splitPageBodyFromFooter(
+  content: string,
+  footnoteMarker?: string
+): readonly [string, string]
+```
+
+## Parameters
+
+<ParamField path="content" type="string" required>
+  Combined body and footnote text
+</ParamField>
+
+<ParamField path="footnoteMarker" type="string" optional>
+  Marker indicating the start of footnotes. Defaults to `FOOTNOTE_MARKER` constant from the library.
+</ParamField>
+
+## Returns
+
+<ResponseField name="[body, footnote]" type="[string, string]">
+  A tuple containing:
+  
+  <Expandable title="Tuple elements">
+    <ResponseField name="[0]" type="string">
+      The page body content (everything before the marker)
+    </ResponseField>
+    <ResponseField name="[1]" type="string">
+      The footnote section (everything after the marker, excluding the marker itself)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Behavior
+
+- If the marker is not found, returns the entire content as body with an empty footnote string
+- The marker itself is excluded from both the body and footnote sections
+- Returns a readonly tuple for type safety
+
+## Example
+
+```typescript
+import { splitPageBodyFromFooter } from 'shamela';
+
+const pageContent = `
+متن الكتاب وهو النص الأساسي
+الذي يحتوي على المحتوى الرئيسي
+
+[FOOTNOTE_MARKER]
+
+[١] هذه هي الحاشية الأولى
+[٢] وهذه الحاشية الثانية
+`;
+
+const [body, footnotes] = splitPageBodyFromFooter(pageContent);
+
+console.log('Body:', body);
+// => "متن الكتاب وهو النص الأساسي\nالذي يحتوي على المحتوى الرئيسي"
+
+console.log('Footnotes:', footnotes);
+// => "[١] هذه هي الحاشية الأولى\n[٢] وهذه الحاشية الثانية"
+```
+
+## Processing Pipeline
+
+Typical usage in a content processing pipeline:
+
+```typescript
+import {
+  mapPageCharacterContent,
+  splitPageBodyFromFooter,
+  removeTagsExceptSpan,
+} from 'shamela';
+
+// 1. Normalize content
+let content = mapPageCharacterContent(rawContent);
+
+// 2. Remove unwanted tags
+content = removeTagsExceptSpan(content);
+
+// 3. Split body from footnotes
+const [body, footnotes] = splitPageBodyFromFooter(content);
+
+// 4. Process each part separately
+processBody(body);
+processFootnotes(footnotes);
+```
+
+## Related Functions
+
+- [`mapPageCharacterContent()`](/api/content/map-page-character-content) - Normalize content before splitting
+- [`removeTagsExceptSpan()`](/api/content/remove-tags-except-span) - Clean HTML before splitting

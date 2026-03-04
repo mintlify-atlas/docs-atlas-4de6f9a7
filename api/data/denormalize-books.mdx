@@ -1,0 +1,242 @@
+---
+title: "denormalizeBooks()"
+description: "Transforms master data by resolving book relationships into a flat structure"
+---
+
+## Function Signature
+
+```typescript
+denormalizeBooks(master: MasterData): DenormalizedBook[]
+```
+
+## Description
+
+Resolves the relationships within the `MasterData` object, returning a flat list of books where author and category IDs have been replaced with their respective objects. It also parses complex fields like `metadata` and `pdf_links` from JSON strings into structured objects.
+
+This transformation makes the data easier to work with by eliminating the need for manual ID lookups and JSON parsing.
+
+## Parameters
+
+<ParamField path="master" type="MasterData" required>
+  The master data object returned from `getMaster()` containing authors, books, categories, and version information
+</ParamField>
+
+## Returns
+
+Returns an array of `DenormalizedBook` objects:
+
+<ResponseField name="DenormalizedBook[]" type="array" required>
+  <Expandable title="DenormalizedBook properties">
+    <ResponseField name="id" type="number" required>
+      Unique book identifier
+    </ResponseField>
+    
+    <ResponseField name="name" type="string" required>
+      Book title
+    </ResponseField>
+    
+    <ResponseField name="bibliography" type="string" required>
+      Bibliographic information
+    </ResponseField>
+    
+    <ResponseField name="author" type="DenormalizedAuthor" required>
+      Primary author object
+      
+      <Expandable title="DenormalizedAuthor properties">
+        <ResponseField name="id" type="number" required>
+          Author identifier
+        </ResponseField>
+        
+        <ResponseField name="name" type="string" required>
+          Author's full name
+        </ResponseField>
+        
+        <ResponseField name="death" type="number">
+          Death year (Hijri)
+        </ResponseField>
+        
+        <ResponseField name="biography" type="string">
+          Biographical information
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="category" type="DenormalizedCategory" required>
+      Category object
+      
+      <Expandable title="DenormalizedCategory properties">
+        <ResponseField name="id" type="number" required>
+          Category identifier
+        </ResponseField>
+        
+        <ResponseField name="name" type="string" required>
+          Category name
+        </ResponseField>
+        
+        <ResponseField name="order" type="number" required>
+          Display order
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="date" type="number">
+      Publication/writing date (Hijri year)
+    </ResponseField>
+    
+    <ResponseField name="hint" type="string">
+      Additional hints or notes about the book
+    </ResponseField>
+    
+    <ResponseField name="type" type="number">
+      Book type identifier
+    </ResponseField>
+    
+    <ResponseField name="printed" type="number" required>
+      Whether the book is printed (0 or 1)
+    </ResponseField>
+    
+    <ResponseField name="version" type="string" required>
+      Version string in format "major.minor"
+    </ResponseField>
+    
+    <ResponseField name="metadata" type="BookMetadata" required>
+      Parsed metadata object
+      
+      <Expandable title="BookMetadata properties">
+        <ResponseField name="date" type="string" required>
+          Date information
+        </ResponseField>
+        
+        <ResponseField name="shorts" type="Record<string, string>">
+          Short names or abbreviations
+        </ResponseField>
+        
+        <ResponseField name="prefix" type="string">
+          Title prefix
+        </ResponseField>
+        
+        <ResponseField name="suffix" type="string">
+          Title suffix
+        </ResponseField>
+        
+        <ResponseField name="coauthor" type="DenormalizedAuthor[]">
+          Array of co-authors
+        </ResponseField>
+        
+        <ResponseField name="min_ver" type="number">
+          Minimum version
+        </ResponseField>
+        
+        <ResponseField name="group" type="number">
+          Group identifier
+        </ResponseField>
+        
+        <ResponseField name="hide_diacritic" type="boolean">
+          Whether to hide diacritical marks
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="pdf_links" type="PdfInfo">
+      PDF download information
+      
+      <Expandable title="PdfInfo properties">
+        <ResponseField name="files" type="PdfFile[]">
+          Array of PDF files
+          
+          <Expandable title="PdfFile properties">
+            <ResponseField name="name" type="string" required>
+              File name
+            </ResponseField>
+            
+            <ResponseField name="part" type="string">
+              Part identifier
+            </ResponseField>
+          </Expandable>
+        </ResponseField>
+        
+        <ResponseField name="alias" type="number">
+          Alias book ID for shared PDF
+        </ResponseField>
+        
+        <ResponseField name="cover" type="number">
+          Cover image identifier
+        </ResponseField>
+        
+        <ResponseField name="cover_alias" type="number">
+          Cover alias identifier
+        </ResponseField>
+        
+        <ResponseField name="size" type="number">
+          Total PDF size in bytes
+        </ResponseField>
+        
+        <ResponseField name="root" type="string">
+          Root URL path
+        </ResponseField>
+        
+        <ResponseField name="folder" type="[number, string]">
+          Folder information [id, name]
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example
+
+```typescript
+import { getMaster, denormalizeBooks } from 'shamela';
+
+const master = await getMaster();
+const books = denormalizeBooks(master);
+
+// Access denormalized data directly
+const book = books[0];
+
+console.log(`Book: ${book.name}`);
+console.log(`Author: ${book.author.name}`);
+console.log(`Category: ${book.category.name}`);
+console.log(`Version: ${book.version}`);
+console.log(`Date: ${book.metadata.date}`);
+
+// Check if book has co-authors
+if (book.metadata.coauthor) {
+  console.log('Co-authors:');
+  book.metadata.coauthor.forEach(author => {
+    console.log(`  - ${author.name}`);
+  });
+}
+
+// Access PDF information
+if (book.pdf_links?.files) {
+  console.log('PDF files:');
+  book.pdf_links.files.forEach(file => {
+    console.log(`  - ${file.name} ${file.part || ''}`);
+  });
+}
+
+// Filter books by category
+const categoryName = 'الحديث الشريف';
+const hadithBooks = books.filter(b => b.category.name === categoryName);
+console.log(`Books in ${categoryName}: ${hadithBooks.length}`);
+```
+
+## Use Cases
+
+1. **Building Search Interfaces**: Filter and search books without manual ID lookups
+2. **Creating Library Catalogs**: Display books with full author and category information
+3. **Data Analysis**: Analyze book collections with easy access to relationships
+4. **API Responses**: Serve denormalized data to clients for better performance
+
+## Performance Notes
+
+- This function processes all books in the master database
+- For large datasets (10,000+ books), consider caching the result
+- The transformation is synchronous and completes quickly (typically < 100ms)
+
+## Related
+
+- [getMaster()](/api/data/get-master) - Retrieve master database
+- [getBook()](/api/data/get-book) - Get individual book data
+- [getCoverUrl()](/api/metadata/get-cover-url) - Generate cover URLs for denormalized books

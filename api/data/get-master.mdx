@@ -1,0 +1,162 @@
+---
+title: "getMaster()"
+description: "Retrieves complete master data including authors, books, and categories"
+---
+
+## Function Signature
+
+```typescript
+Master(): Promise<MasterData>
+```
+
+## Description
+
+Retrieves the complete master dataset as a JavaScript object, including version information. The master database contains comprehensive information about all books, authors, and categories available in the Shamela library.
+
+This convenience function downloads the master database archive, builds an in-memory SQLite database, and returns structured data for immediate consumption alongside the version number of the snapshot.
+
+## Parameters
+
+This function takes no parameters.
+
+## Returns
+
+Returns a Promise that resolves to a `MasterData` object:
+
+<ResponseField name="authors" type="Author[]" required>
+  Array of all authors in the Shamela library
+  
+  <Expandable title="Author properties">
+    <ResponseField name="id" type="number" required>
+      Unique author identifier
+    </ResponseField>
+    
+    <ResponseField name="name" type="string" required>
+      Author's full name
+    </ResponseField>
+    
+    <ResponseField name="biography" type="string">
+      Biographical information about the author
+    </ResponseField>
+    
+    <ResponseField name="death_text" type="string">
+      Death date as text
+    </ResponseField>
+    
+    <ResponseField name="death_number" type="number">
+      Death year as number
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="books" type="Book[]" required>
+  Array of all books in the Shamela library
+  
+  <Expandable title="Book properties">
+    <ResponseField name="id" type="number" required>
+      Unique book identifier
+    </ResponseField>
+    
+    <ResponseField name="name" type="string" required>
+      Book title
+    </ResponseField>
+    
+    <ResponseField name="author" type="string" required>
+      Author ID (comma-separated for multiple authors)
+    </ResponseField>
+    
+    <ResponseField name="category" type="string" required>
+      Category ID
+    </ResponseField>
+    
+    <ResponseField name="bibliography" type="string" required>
+      Bibliographic information
+    </ResponseField>
+    
+    <ResponseField name="date" type="string">
+      Publication/writing date
+    </ResponseField>
+    
+    <ResponseField name="hint" type="string">
+      Additional hints or notes
+    </ResponseField>
+    
+    <ResponseField name="printed" type="string" required>
+      Whether the book is printed (0 or 1)
+    </ResponseField>
+    
+    <ResponseField name="major_release" type="number" required>
+      Major version number
+    </ResponseField>
+    
+    <ResponseField name="minor_release" type="number" required>
+      Minor version number
+    </ResponseField>
+    
+    <ResponseField name="metadata" type="string" required>
+      JSON string containing additional metadata
+    </ResponseField>
+    
+    <ResponseField name="pdf_links" type="string">
+      JSON string containing PDF download links
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="categories" type="Category[]" required>
+  Array of all categories in the Shamela library
+  
+  <Expandable title="Category properties">
+    <ResponseField name="id" type="number" required>
+      Unique category identifier
+    </ResponseField>
+    
+    <ResponseField name="name" type="string" required>
+      Category name
+    </ResponseField>
+    
+    <ResponseField name="order" type="string" required>
+      Display order for the category
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="version" type="number" required>
+  Version number for the downloaded master database
+</ResponseField>
+
+## Example
+
+```typescript
+import { getMaster } from 'shamela';
+
+const master = await getMaster();
+
+console.log(`Master database version: ${master.version}`);
+console.log(`Total books: ${master.books.length}`);
+console.log(`Total authors: ${master.authors.length}`);
+console.log(`Total categories: ${master.categories.length}`);
+
+// Find books by a specific author
+const authorId = '123';
+const booksByAuthor = master.books.filter(book => 
+  book.author.split(',').includes(authorId)
+);
+
+console.log(`Books by author ${authorId}: ${booksByAuthor.length}`);
+```
+
+## Error Handling
+
+Throws an error when:
+- Download fails
+- Expected tables are missing from the master database
+- Database operations fail
+- Network request fails
+
+## Related
+
+- [denormalizeBooks()](/api/data/denormalize-books) - Transform master data to denormalized format
+- [downloadMasterDatabase()](/api/metadata/download-master-database) - Download master database to file
+- [getMasterMetadata()](/api/metadata/get-master-metadata) - Get master database metadata
+- [getCoverUrl()](/api/metadata/get-cover-url) - Generate book cover URLs

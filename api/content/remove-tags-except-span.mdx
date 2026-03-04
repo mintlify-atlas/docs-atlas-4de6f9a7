@@ -1,0 +1,128 @@
+---
+title: removeTagsExceptSpan()
+description: Remove HTML tags while preserving span elements
+---
+
+## Overview
+
+Removes anchor and hadeeth tags from the content while preserving `<span>` elements. This is useful for cleaning Shamela HTML while maintaining the title hierarchy information stored in span tags.
+
+## Signature
+
+```typescript
+removeTagsExceptSpan(content: string): string
+```
+
+## Parameters
+
+<ParamField path="content" type="string" required>
+  HTML string containing various tags
+</ParamField>
+
+## Returns
+
+<ResponseField name="string" type="string">
+  The content with only span tags retained
+</ResponseField>
+
+## Tags Removed
+
+### Anchor Tags (`<a>`)
+- Removes `<a>` tags but preserves the text content inside
+- Pattern: `/<a[^>]*>(.*?)<\/a>/gs`
+- Example: `<a href="inr://123">text</a>` → `text`
+
+### Hadeeth Tags
+- Removes all hadeeth-related tags:
+  - Self-closing: `<hadeeth />`
+  - With content: `<hadeeth>...</hadeeth>`
+  - Numbered: `<hadeeth-1>`, `<hadeeth-2>`, etc.
+- Pattern: `/<hadeeth[^>]*>|<\/hadeeth>|<hadeeth-\d+>/gs`
+
+## Example
+
+```typescript
+import { removeTagsExceptSpan } from 'shamela';
+
+const html = `
+<span data-type="title" id="toc-1">الباب الأول</span>
+<a href="inr://123">رابط الراوي</a>
+<hadeeth-1>متن الحديث</hadeeth-1>
+<span data-type="title" id="toc-2">الباب الثاني</span>
+`;
+
+const cleaned = removeTagsExceptSpan(html);
+
+console.log(cleaned);
+// Output:
+// <span data-type="title" id="toc-1">الباب الأول</span>
+// رابط الراوي
+// متن الحديث
+// <span data-type="title" id="toc-2">الباب الثاني</span>
+```
+
+## Use Cases
+
+### Preserve Title Hierarchy
+```typescript
+import { removeTagsExceptSpan, parseContentRobust } from 'shamela';
+
+// Clean HTML but keep title spans
+const cleaned = removeTagsExceptSpan(rawHtml);
+
+// Parse to extract title hierarchy
+const lines = parseContentRobust(cleaned);
+```
+
+### Prepare for Display
+```typescript
+import { removeTagsExceptSpan, normalizeHtml } from 'shamela';
+
+// Remove unwanted tags
+let content = removeTagsExceptSpan(rawHtml);
+
+// Normalize remaining HTML for CSS styling
+content = normalizeHtml(content);
+```
+
+## Processing Pipeline
+
+Recommended order when processing Shamela content:
+
+```typescript
+import {
+  mapPageCharacterContent,
+  removeTagsExceptSpan,
+  removeArabicNumericPageMarkers,
+  parseContentRobust,
+} from 'shamela';
+
+// 1. Normalize characters first
+let content = mapPageCharacterContent(rawContent);
+
+// 2. Remove unwanted tags (keeps spans)
+content = removeTagsExceptSpan(content);
+
+// 3. Remove page markers
+content = removeArabicNumericPageMarkers(content);
+
+// 4. Parse into structured lines
+const lines = parseContentRobust(content);
+```
+
+## Complete Tag Removal
+
+If you need to remove ALL tags including spans, use [`stripHtmlTags()`](/api/content/html-processing#striphtmltags) instead:
+
+```typescript
+import { stripHtmlTags } from 'shamela';
+
+const plainText = stripHtmlTags(html);
+// All tags removed, only text remains
+```
+
+## Related Functions
+
+- [`stripHtmlTags()`](/api/content/html-processing#striphtmltags) - Remove ALL HTML tags
+- [`normalizeHtml()`](/api/content/html-processing#normalizehtml) - Normalize hadeeth tags to spans
+- [`parseContentRobust()`](/api/content/parse-content-robust) - Parse HTML preserving title hierarchy

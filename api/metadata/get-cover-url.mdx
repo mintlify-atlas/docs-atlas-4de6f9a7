@@ -1,0 +1,230 @@
+---
+title: 'getCoverUrl'
+description: 'Generates the URL for a book cover image'
+---
+
+## Overview
+
+This function constructs the URL to access the cover image for a specific book using the book's ID and the API endpoint host configured in your application.
+
+## Function Signature
+
+```typescript
+getCoverUrl(bookId: number): string
+```
+
+## Parameters
+
+<ParamField path="bookId" type="number" required>
+  The unique identifier of the book
+</ParamField>
+
+## Returns
+
+<ResponseField name="string" type="string">
+  The complete URL to the book's cover image in JPG format
+</ResponseField>
+
+## Examples
+
+### Get Single Cover URL
+
+```typescript
+import { getCoverUrl } from 'shamela';
+
+const coverUrl = getCoverUrl(26592);
+console.log(coverUrl);
+// Output: "https://api.shamela.ws/covers/26592.jpg"
+```
+
+### Generate Cover URLs for Multiple Books
+
+```typescript
+import { getMaster, getCoverUrl } from 'shamela';
+
+const master = await getMaster();
+
+// Generate cover URLs for all books
+const booksWithCovers = master.books.map(book => ({
+  id: book.id,
+  name: book.name,
+  coverUrl: getCoverUrl(book.id)
+}));
+
+console.log(booksWithCovers[0]);
+// {
+//   id: 26592,
+//   name: "صحيح البخاري",
+//   coverUrl: "https://api.shamela.ws/covers/26592.jpg"
+// }
+```
+
+### Display Cover in React Component
+
+```typescript jsx
+import { getCoverUrl } from 'shamela';
+
+interface BookCardProps {
+  bookId: number;
+  title: string;
+}
+
+function BookCard({ bookId, title }: BookCardProps) {
+  const coverUrl = getCoverUrl(bookId);
+  
+  return (
+    <div className="book-card">
+      <img 
+        src={coverUrl} 
+        alt={`Cover of ${title}`}
+        onError={(e) => {
+          // Fallback for missing covers
+          e.currentTarget.src = '/placeholder-cover.jpg';
+        }}
+      />
+      <h3>{title}</h3>
+    </div>
+  );
+}
+```
+
+### Download Cover Image (Node.js)
+
+```typescript
+import { getCoverUrl } from 'shamela';
+import { writeFile } from 'fs/promises';
+
+async function downloadCover(bookId: number) {
+  const coverUrl = getCoverUrl(bookId);
+  
+  const response = await fetch(coverUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to download cover: ${response.status}`);
+  }
+  
+  const buffer = await response.arrayBuffer();
+  await writeFile(`./covers/${bookId}.jpg`, Buffer.from(buffer));
+  
+  console.log(`Cover saved for book ${bookId}`);
+}
+
+await downloadCover(26592);
+```
+
+### Preload Covers for Better UX
+
+```typescript
+import { getCoverUrl } from 'shamela';
+
+function preloadCovers(bookIds: number[]) {
+  bookIds.forEach(id => {
+    const img = new Image();
+    img.src = getCoverUrl(id);
+  });
+}
+
+// Preload covers for visible books
+preloadCovers([26592, 23, 6126]);
+```
+
+### Check Cover Availability
+
+```typescript
+import { getCoverUrl } from 'shamela';
+
+async function checkCoverExists(bookId: number): Promise<boolean> {
+  const coverUrl = getCoverUrl(bookId);
+  
+  try {
+    const response = await fetch(coverUrl, { method: 'HEAD' });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+const hasCover = await checkCoverExists(26592);
+console.log(`Cover exists: ${hasCover}`);
+```
+
+## Cover Image Details
+
+<Info>
+  - Format: JPEG (`.jpg`)
+  - Hosted on Shamela's CDN
+  - Not all books have cover images
+  - Typical dimensions: varies by book
+  - No authentication required for cover images
+</Info>
+
+## Handling Missing Covers
+
+<Note>
+  Some books may not have cover images available. Always implement fallback handling:
+</Note>
+
+```typescript
+function getCoverWithFallback(bookId: number): string {
+  return getCoverUrl(bookId);
+}
+
+// In your UI
+<img 
+  src={getCoverWithFallback(bookId)}
+  onError={(e) => {
+    e.currentTarget.src = '/default-book-cover.jpg';
+  }}
+  alt="Book cover"
+/>
+```
+
+## Configuration Requirements
+
+<Note>
+  This function uses the `masterPatchEndpoint` configuration to determine the API host:
+</Note>
+
+```typescript
+import { configure, getCoverUrl } from 'shamela';
+
+configure({
+  masterPatchEndpoint: 'https://api.shamela.ws/api/master_patch'
+});
+
+// Now getCoverUrl will use https://api.shamela.ws as the host
+const url = getCoverUrl(26592);
+// Returns: "https://api.shamela.ws/covers/26592.jpg"
+```
+
+## Error Handling
+
+<Warning>
+  This function throws an error when:
+  - Required configuration (`masterPatchEndpoint`) is not set
+  - Invalid URL cannot be constructed
+</Warning>
+
+```typescript
+try {
+  const coverUrl = getCoverUrl(26592);
+  console.log(coverUrl);
+} catch (error) {
+  console.error('Failed to generate cover URL:', error.message);
+}
+```
+
+## Best Practices
+
+<Tip>
+  1. **Cache cover URLs** - The URL for a given book ID never changes
+  2. **Lazy load images** - Use loading="lazy" for better performance
+  3. **Provide fallbacks** - Not all books have covers
+  4. **Optimize delivery** - Consider using an image CDN proxy
+  5. **Responsive images** - Add srcset if you have multiple sizes
+</Tip>
+
+## Related Functions
+
+- [getBookMetadata](/api/metadata/get-book-metadata) - Get book metadata including versions
+- [getMaster](/api/data/get-master) - Get all books with their metadata
+- [downloadBook](/api/metadata/download-book) - Download complete book data

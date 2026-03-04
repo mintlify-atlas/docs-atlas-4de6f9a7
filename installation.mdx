@@ -1,0 +1,70 @@
+---
+title: "Installation"
+description: "Install the Shamela library in your project"
+---
+
+<Warning>
+  **API Key Required**: This library requires an API key to access Shamela's APIs. 
+  
+  For API key inquiries, please email [mail@shamela.ws](mailto:mail@shamela.ws). 
+  
+  Do not open GitHub issues or contact the maintainer for API keys.
+</Warning>
+
+## Install the package
+
+Choose your preferred package manager to install Shamela:
+
+<CodeGroup>
+
+```bash npm
+npm install shamela
+```
+
+```bash yarn
+yarn add shamela
+```
+
+```bash pnpm
+pnpm install shamela
+```
+
+```bash bun
+bun add shamela
+```
+
+</CodeGroup>
+
+## Dependencies
+
+The library automatically installs these dependencies:
+
+- **sql.js** - SQLite compiled to WebAssembly for database operations
+- **fflate** - Fast compression/decompression for handling Shamela's ZIP archives
+
+## Environment requirements
+
+Shamela works across multiple JavaScript environments:
+
+- **Node.js**: Version 25.0.0 or higher
+- **Bun**: Version 1.3.7 or higher
+- **Modern browsers**: With WebAssembly support
+- **Next.js**: Version 16+ with server-side configuration
+
+## Verify installation
+
+Check that the package is installed correctly:
+
+```bash
+npm list shamela
+```
+
+You should see the installed version in the output.
+
+## Next steps
+
+Now that you have Shamela installed, proceed to the quickstart guide to configure the library and make your first API calls.
+
+<Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+  Configure Shamela and download your first book
+</Card>

@@ -1,0 +1,187 @@
+---
+title: Download Book
+description: Examples of downloading individual books from the Shamela library
+---
+
+Download complete book data including pages and titles from the Shamela library.
+
+## Basic Download as JSON
+
+Download a book as JSON:
+
+```typescript
+import { downloadBook } from 'shamela';
+
+const bookId = 26592;
+
+await downloadBook(bookId, {
+  outputFile: { path: `./book_${bookId}.json` }
+});
+```
+
+## Download as SQLite
+
+Download a book as a SQLite database:
+
+```typescript
+import { downloadBook } from 'shamela';
+
+const bookId = 26592;
+
+await downloadBook(bookId, {
+  outputFile: { path: `./book_${bookId}.db` }
+});
+```
+
+## With Pre-fetched Metadata
+
+Optimize downloads by pre-fetching metadata to avoid extra HTTP calls:
+
+```typescript
+import { getBookMetadata, downloadBook } from 'shamela';
+
+const bookId = 26592;
+
+// Fetch metadata first
+const metadata = await getBookMetadata(bookId);
+console.log(`Major release: ${metadata.majorRelease}`);
+console.log(`Major release URL: ${metadata.majorReleaseUrl}`);
+
+if (metadata.minorReleaseUrl) {
+  console.log(`Minor release available: ${metadata.minorReleaseUrl}`);
+}
+
+// Use metadata in download
+await downloadBook(bookId, {
+  bookMetadata: metadata,
+  outputFile: { path: `./book_${bookId}.json` }
+});
+```
+
+## Check for Book Updates
+
+Check if there are updates for a specific book version:
+
+```typescript
+import { getBookMetadata } from 'shamela';
+
+const bookId = 26592;
+
+// Check for updates from version 1.0
+const metadata = await getBookMetadata(bookId, {
+  majorVersion: 1,
+  minorVersion: 0
+});
+
+console.log(`Latest major release: ${metadata.majorRelease}`);
+if (metadata.minorRelease) {
+  console.log(`Latest minor release: ${metadata.minorRelease}`);
+}
+```
+
+<Accordion title="Response Structure">
+
+### GetBookMetadataResponsePayload
+
+```typescript
+type GetBookMetadataResponsePayload = {
+  majorRelease: number;          // Major version number
+  majorReleaseUrl: string;       // Download URL for major release
+  minorRelease?: number;         // Minor version number (optional)
+  minorReleaseUrl?: string;      // Download URL for minor release (optional)
+};
+```
+
+### Example Response
+
+```json
+{
+  "majorRelease": 2,
+  "majorReleaseUrl": "https://shamela.ws/api/books/26592/download/2.zip",
+  "minorRelease": 1,
+  "minorReleaseUrl": "https://shamela.ws/api/books/26592/patch/1.zip"
+}
+```
+
+</Accordion>
+
+## Get Book Cover URL
+
+Generate the URL for a book's cover image:
+
+```typescript
+import { getCoverUrl, getMaster } from 'shamela';
+
+const master = await getMaster();
+
+// Generate cover URLs for all books
+master.books.forEach(book => {
+  const coverUrl = getCoverUrl(book.id);
+  console.log(`${book.name}: ${coverUrl}`);
+});
+```
+
+### Single Book Cover
+
+```typescript
+import { getCoverUrl } from 'shamela';
+
+const coverUrl = getCoverUrl(26592);
+console.log(coverUrl);
+// Output: "https://shamela.ws/covers/26592.jpg"
+```
+
+## Download Multiple Books
+
+Batch download multiple books:
+
+```typescript
+import { downloadBook } from 'shamela';
+
+const bookIds = [26592, 12345, 67890];
+
+for (const bookId of bookIds) {
+  try {
+    await downloadBook(bookId, {
+      outputFile: { path: `./books/${bookId}.json` }
+    });
+    console.log(`Downloaded book ${bookId}`);
+  } catch (error) {
+    console.error(`Failed to download book ${bookId}:`, error);
+  }
+}
+```
+
+## File Format Detection
+
+The output format is automatically detected from the file extension:
+
+```typescript
+import { downloadBook } from 'shamela';
+
+const bookId = 26592;
+
+// SQLite format (.db or .sqlite)
+await downloadBook(bookId, {
+  outputFile: { path: './book.db' }       // SQLite
+});
+
+await downloadBook(bookId, {
+  outputFile: { path: './book.sqlite' }   // SQLite
+});
+
+// JSON format
+await downloadBook(bookId, {
+  outputFile: { path: './book.json' }     // JSON
+});
+```
+
+<Note>
+The library automatically handles patches. If a minor release is available, it will be applied on top of the major release.
+</Note>
+
+## Related Functions
+
+- [getBook](/api-reference/data-access/get-book) - Retrieve book data as a JavaScript object
+- [getBookMetadata](/api-reference/metadata-downloads/get-book-metadata) - Fetch book metadata
+- [getCoverUrl](/api-reference/metadata-downloads/get-cover-url) - Generate cover image URL

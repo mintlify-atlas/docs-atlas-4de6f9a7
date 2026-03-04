@@ -1,0 +1,236 @@
+---
+title: 'downloadBook'
+description: 'Downloads and processes a book from the Shamela database'
+---
+
+## Overview
+
+This function downloads the book's database files, applies patches if available, creates the necessary database tables, and exports the data to the specified format. The output can be either a JSON file or a SQLite database file.
+
+## Function Signature
+
+```typescript
+downloadBook(id: number, options: DownloadBookOptions): Promise<string>
+```
+
+## Parameters
+
+<ParamField path="id" type="number" required>
+  The unique identifier of the book to download
+</ParamField>
+
+<ParamField path="options" type="DownloadBookOptions" required>
+  Configuration options for downloading the book
+  
+  <Expandable title="properties">
+    <ParamField path="bookMetadata" type="GetBookMetadataResponsePayload">
+      Optional pre-fetched book metadata to avoid re-fetching. If not provided, the function will fetch it automatically.
+    </ParamField>
+    
+    <ParamField path="outputFile" type="OutputOptions" required>
+      Output file configuration
+      
+      <Expandable title="properties">
+        <ParamField path="path" type="string" required>
+          Output file path. Supported extensions:
+          - `.db` or `.sqlite` - SQLite database format
+          - `.json` - JSON format
+        </ParamField>
+        
+        <ParamField path="writer" type="function">
+          Custom writer function for non-Node.js environments. Signature: `(payload: string | Uint8Array) => Promise<void> | void`
+        </ParamField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Returns
+
+<ResponseField name="string" type="string">
+  The path of the created output file
+</ResponseField>
+
+## Examples
+
+### Download as JSON
+
+```typescript
+import { downloadBook } from 'shamela';
+
+const jsonPath = await downloadBook(26592, {
+  outputFile: { path: './book.json' }
+});
+
+console.log(`Book saved to: ${jsonPath}`);
+```
+
+### Download as SQLite Database
+
+```typescript
+const dbPath = await downloadBook(26592, {
+  outputFile: { path: './book.db' }
+});
+
+console.log(`SQLite database saved to: ${dbPath}`);
+```
+
+### Using Pre-fetched Metadata
+
+```typescript
+import { getBookMetadata, downloadBook } from 'shamela';
+
+const bookId = 26592;
+
+// Fetch metadata first
+const metadata = await getBookMetadata(bookId);
+console.log(`Downloading v${metadata.majorRelease}`);
+
+// Download using the metadata
+await downloadBook(bookId, {
+  bookMetadata: metadata,
+  outputFile: { path: `./book_${bookId}.json` }
+});
+```
+
+### Download Multiple Books
+
+```typescript
+const bookIds = [26592, 23, 6126];
+
+for (const id of bookIds) {
+  try {
+    const path = await downloadBook(id, {
+      outputFile: { path: `./books/book_${id}.db` }
+    });
+    console.log(`✓ Downloaded book ${id}`);
+  } catch (error) {
+    console.error(`✗ Failed to download book ${id}:`, error.message);
+  }
+}
+```
+
+### Custom Writer for Browser
+
+```typescript
+const downloadBookInBrowser = async (bookId: number) => {
+  await downloadBook(bookId, {
+    outputFile: {
+      path: `book_${bookId}.json`,
+      writer: async (payload) => {
+        // Trigger browser download
+        const blob = new Blob([payload], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `book_${bookId}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    }
+  });
+};
+```
+
+## Output Format
+
+### SQLite Format
+
+The SQLite database contains the following tables:
+- `pages` - Book pages with content
+- `titles` - Chapter/section titles with hierarchy
+
+### JSON Format
+
+```typescript
+{
+  "pages": [
+    {
+      "id": 1,
+      "content": "<span data-type=\"title\">المقدمة</span>\nالنص...",
+      "page": 1,
+      "part": "1",
+      "number": "5"
+    }
+  ],
+  "titles": [
+    {
+      "id": 1,
+      "content": "المقدمة",
+      "page": 1,
+      "parent": null
+    },
+    {
+      "id": 2,
+      "content": "الباب الأول",
+      "page": 1,
+      "parent": 1
+    }
+  ]
+}
+```
+
+## Patch Handling
+
+<Info>
+  The function automatically handles applying patches:
+  - If a minor release (patch) is available, it's downloaded and applied
+  - Patches contain corrections and additions to the major release
+  - The final output includes all patched data
+</Info>
+
+## Error Handling
+
+<Warning>
+  This function throws an error when:
+  - Download fails
+  - Book database file is not found in the archive
+  - Database operations fail
+  - File write operations fail
+  - Unsupported file extension is provided
+</Warning>
+
+```typescript
+try {
+  const path = await downloadBook(26592, {
+    outputFile: { path: './book.json' }
+  });
+  console.log('Download successful:', path);
+} catch (error) {
+  if (error.message.includes('Unable to locate book database')) {
+    console.error('Invalid book archive format');
+  } else {
+    console.error('Download failed:', error.message);
+  }
+}
+```
+
+## Performance Considerations
+
+<Tip>
+  - Book sizes vary from a few MB to over 100MB
+  - JSON format is typically larger than SQLite
+  - Pre-fetching metadata saves one HTTP request
+  - Downloads include automatic decompression
+</Tip>
+
+## Configuration Requirements
+
+<Note>
+  Ensure the `booksEndpoint` is configured before calling this function:
+</Note>
+
+```typescript
+import { configure } from 'shamela';
+
+configure({
+  apiKey: process.env.SHAMELA_API_KEY,
+  booksEndpoint: process.env.SHAMELA_BOOKS_ENDPOINT
+});
+```
+
+## Related Functions
+
+- [getBookMetadata](/api/metadata/get-book-metadata) - Fetch metadata before downloading
+- [getBook](/api/data/get-book) - Get book data as a JavaScript object without saving to disk
+- [getCoverUrl](/api/metadata/get-cover-url) - Generate the cover image URL for a book

@@ -1,0 +1,220 @@
+---
+title: Markdown Conversion Functions
+description: Convert Shamela HTML content to Markdown format
+---
+
+## Overview
+
+These functions convert Shamela HTML content to Markdown format, making it easier to work with the content in markdown-based systems and pattern matching workflows.
+
+---
+
+## htmlToMarkdown()
+
+Converts Shamela HTML to Markdown format for easier pattern matching.
+
+### Signature
+
+```typescript
+htmlToMarkdown(html: string): string
+```
+
+### Parameters
+
+<ParamField path="html" type="string" required>
+  HTML content from Shamela
+</ParamField>
+
+### Returns
+
+<ResponseField name="string" type="string">
+  Markdown-formatted content
+</ResponseField>
+
+### Transformations
+
+1. **Title spans to headers**
+   - `<span data-type="title">text</span>` → `## text`
+   - No extra newlines added (content already has proper line breaks)
+
+2. **Narrator links stripped**
+   - `<a href="inr://...">text</a>` → `text`
+   - Removes narrator reference links but preserves text
+
+3. **All other HTML tags**
+   - Stripped using `stripHtmlTags()`
+
+### Example
+
+```typescript
+import { htmlToMarkdown } from 'shamela';
+
+const html = `
+<span data-type="title">كتاب الإيمان</span>
+نص المحتوى العادي
+<a href="inr://123">محمد بن عبد الله</a>
+<span data-type="title">باب الصلاة</span>
+`;
+
+const markdown = htmlToMarkdown(html);
+console.log(markdown);
+
+// Output:
+// ## كتاب الإيمان
+// نص المحتوى العادي
+// محمد بن عبد الله
+// ## باب الصلاة
+```
+
+### Notes
+
+- Line breaks are preserved from the original content
+- Line ending normalization should be handled by calling functions
+- Works in conjunction with `normalizeTitleSpans()` for consecutive titles
+
+---
+
+## convertContentToMarkdown()
+
+Converts Shamela HTML content to Markdown format using a standardized pipeline.
+
+### Signature
+
+```typescript
+convertContentToMarkdown(
+  content: string,
+  options?: NormalizeTitleSpanOptions
+): string
+```
+
+### Parameters
+
+<ParamField path="content" type="string" required>
+  Raw HTML content from Shamela
+</ParamField>
+
+<ParamField path="options" type="NormalizeTitleSpanOptions" optional>
+  Optional configuration for title span normalization. Defaults to `{ strategy: 'splitLines' }`
+  
+  <Expandable title="NormalizeTitleSpanOptions properties">
+    <ParamField path="strategy" type="'splitLines' | 'merge' | 'hierarchy'" default="splitLines">
+      How to handle adjacent title spans:
+      - `splitLines`: Insert `\n` between spans (default)
+      - `merge`: Combine into single span with separator
+      - `hierarchy`: Convert subsequent spans to subtitles
+    </ParamField>
+    
+    <ParamField path="separator" type="string" default=" — ">
+      Used only for `merge` strategy
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Returns
+
+<ResponseField name="string" type="string">
+  Markdown-formatted content with normalized line endings
+</ResponseField>
+
+### Processing Pipeline
+
+This function applies the following transformations in order:
+
+1. **Normalize consecutive title spans** - Using `normalizeTitleSpans()`
+2. **Move pre-title text into spans** - Using `moveContentAfterLineBreakIntoSpan()`
+3. **Convert to Markdown format** - Using `htmlToMarkdown()`
+4. **Normalize line endings** - Using `normalizeLineEndings()`
+
+### Example
+
+```typescript
+import { convertContentToMarkdown } from 'shamela';
+
+const html = `
+<span data-type="title">Chapter</span><span data-type="title">One</span>
+Some content here
+١ - <span data-type="title">الباب الثاني</span>
+`;
+
+const markdown = convertContentToMarkdown(html);
+console.log(markdown);
+
+// Output:
+// ## Chapter
+// ## One
+// Some content here
+// ## ١ - الباب الثاني
+```
+
+### Strategy Options
+
+#### Default (splitLines)
+```typescript
+const md = convertContentToMarkdown(html);
+// Adjacent titles on separate lines
+```
+
+#### Merge Strategy
+```typescript
+const md = convertContentToMarkdown(html, {
+  strategy: 'merge',
+  separator: ' — ',
+});
+// Adjacent titles combined: "## Title One — Title Two"
+```
+
+#### Hierarchy Strategy
+```typescript
+const md = convertContentToMarkdown(html, {
+  strategy: 'hierarchy',
+});
+// First title remains, subsequent become subtitles
+```
+
+### Complete Example
+
+```typescript
+import {
+  getBook,
+  convertContentToMarkdown,
+  splitPageBodyFromFooter,
+} from 'shamela';
+
+// Get book data
+const book = await getBook(26592);
+
+// Process each page
+for (const page of book.pages) {
+  // Split body from footnotes
+  const [body, footnotes] = splitPageBodyFromFooter(page.content);
+  
+  // Convert to markdown
+  const bodyMd = convertContentToMarkdown(body);
+  const footnotesMd = convertContentToMarkdown(footnotes);
+  
+  console.log('--- Page', page.page, '---');
+  console.log(bodyMd);
+  
+  if (footnotesMd) {
+    console.log('\n--- Footnotes ---');
+    console.log(footnotesMd);
+  }
+}
+```
+
+### Use Cases
+
+- **Export to Markdown files** - Convert books for markdown-based systems
+- **Pattern matching** - Easier to match patterns in markdown than HTML
+- **Documentation generation** - Use with static site generators
+- **Search indexing** - Index markdown content for better search
+- **LLM processing** - Provide cleaner format for AI models
+
+---
+
+## Related Functions
+
+- [`normalizeTitleSpans()`](/api/content/html-processing#normalizetitlespans) - Normalize consecutive titles
+- [`moveContentAfterLineBreakIntoSpan()`](/api/content/html-processing#movecontentafterlinebreakintospans) - Fix pre-title text
+- [`normalizeLineEndings()`](/api/content/html-processing#normalizelineendings) - Normalize line endings
+- [`stripHtmlTags()`](/api/content/html-processing#striphtmltags) - Remove HTML tags

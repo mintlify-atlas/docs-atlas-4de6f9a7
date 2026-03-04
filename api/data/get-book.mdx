@@ -1,0 +1,105 @@
+---
+title: "getBook()"
+description: "Retrieves complete book data including pages and titles"
+---
+
+## Function Signature
+
+```typescript
+getBook(id: number): Promise<BookData>
+```
+
+## Description
+
+Retrieves complete book data including pages and titles as a structured JavaScript object. This is a convenience function that downloads a book's data and returns it directly. The function handles the temporary database creation and cleanup automatically.
+
+## Parameters
+
+<ParamField path="id" type="number" required>
+  The unique identifier of the book to retrieve
+</ParamField>
+
+## Returns
+
+Returns a Promise that resolves to a `BookData` object:
+
+<ResponseField name="pages" type="Page[]" required>
+  Array of pages in the book
+  
+  <Expandable title="Page properties">
+    <ResponseField name="id" type="number" required>
+      Unique page identifier
+    </ResponseField>
+    
+    <ResponseField name="content" type="string" required>
+      The HTML content of the page
+    </ResponseField>
+    
+    <ResponseField name="page" type="number">
+      Page number
+    </ResponseField>
+    
+    <ResponseField name="part" type="string">
+      Part/volume identifier
+    </ResponseField>
+    
+    <ResponseField name="number" type="string">
+      Page number as string
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="titles" type="Title[]" required>
+  Array of title entries (table of contents)
+  
+  <Expandable title="Title properties">
+    <ResponseField name="id" type="number" required>
+      Unique title identifier
+    </ResponseField>
+    
+    <ResponseField name="content" type="string" required>
+      The title/heading text
+    </ResponseField>
+    
+    <ResponseField name="page" type="number" required>
+      Page number where this title appears
+    </ResponseField>
+    
+    <ResponseField name="parent" type="number">
+      ID of parent title for hierarchical structure
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example
+
+```typescript
+import { getBook } from 'shamela';
+
+const book = await getBook(26592);
+
+console.log(`Book has ${book.pages.length} pages`);
+
+// Display table of contents
+book.titles?.forEach(title => {
+  console.log(`${title.id}: ${title.content} (Page ${title.page})`);
+});
+
+// Access page content
+const firstPage = book.pages[0];
+console.log(firstPage.content.substring(0, 100));
+```
+
+## Error Handling
+
+Throws an error when:
+- Download fails
+- File operations fail
+- JSON parsing fails
+- Book ID does not exist
+
+## Related
+
+- [downloadBook()](/api/metadata/download-book) - Download book to file
+- [getBookMetadata()](/api/metadata/get-book-metadata) - Get book metadata
+- [Content Utilities](/api/content/parse-content-robust) - Process book content

@@ -1,0 +1,257 @@
+---
+title: getConfig() & Helpers
+description: Retrieve and validate Shamela configuration values
+---
+
+## getConfig()
+
+### Function Signature
+
+```typescript
+getConfig(): ShamelaConfig
+```
+
+Resolves the current configuration by combining runtime overrides and environment variables.
+
+### Return Value
+
+<ResponseField name="ShamelaConfig" type="object">
+  The resolved configuration object
+  
+  <Expandable title="ShamelaConfig properties">
+    <ResponseField name="apiKey" type="string | undefined">
+      API key used to authenticate against Shamela services
+    </ResponseField>
+    
+    <ResponseField name="booksEndpoint" type="string | undefined">
+      Endpoint used for book metadata
+    </ResponseField>
+    
+    <ResponseField name="masterPatchEndpoint" type="string | undefined">
+      Endpoint used for master metadata
+    </ResponseField>
+    
+    <ResponseField name="sqlJsWasmUrl" type="string | undefined">
+      Optional override for the sql.js WASM asset location
+    </ResponseField>
+    
+    <ResponseField name="fetchImplementation" type="typeof fetch | undefined">
+      Optional custom fetch implementation
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example
+
+```typescript
+import { configure, getConfig } from 'shamela';
+
+configure({
+  apiKey: 'my-api-key',
+  booksEndpoint: 'https://shamela.ws/api/books',
+});
+
+const config = getConfig();
+console.log(config.apiKey); // 'my-api-key'
+console.log(config.booksEndpoint); // 'https://shamela.ws/api/books'
+console.log(config.masterPatchEndpoint); // undefined or value from env var
+```
+
+---
+
+## getConfigValue()
+
+### Function Signature
+
+```typescript
+getConfigValue<Key extends ShamelaConfigKey>(key: Key): ShamelaConfig[Key] | undefined
+```
+
+Retrieves a single configuration value without throwing when it is missing.
+
+### Parameters
+
+<ParamField path="key" type="ShamelaConfigKey" required>
+  The configuration key to read. Valid keys:
+  - `'apiKey'`
+  - `'booksEndpoint'`
+  - `'masterPatchEndpoint'`
+  - `'sqlJsWasmUrl'`
+  - `'fetchImplementation'`
+</ParamField>
+
+### Return Value
+
+<ResponseField type="ShamelaConfig[Key] | undefined">
+  The configuration value if present, otherwise `undefined`
+</ResponseField>
+
+### Example
+
+```typescript
+import { configure, getConfigValue } from 'shamela';
+
+configure({
+  apiKey: 'my-api-key',
+  booksEndpoint: 'https://shamela.ws/api/books',
+});
+
+const apiKey = getConfigValue('apiKey');
+console.log(apiKey); // 'my-api-key'
+
+const sqlJsWasmUrl = getConfigValue('sqlJsWasmUrl');
+console.log(sqlJsWasmUrl); // undefined (not configured)
+```
+
+### Special Behavior for fetchImplementation
+
+The `fetchImplementation` key only reads from runtime configuration set via `configure()`. It cannot be set via environment variables.
+
+```typescript
+import { configure, getConfigValue } from 'shamela';
+import nodeFetch from 'node-fetch';
+
+configure({
+  fetchImplementation: nodeFetch as unknown as typeof fetch,
+});
+
+const fetchImpl = getConfigValue('fetchImplementation');
+console.log(fetchImpl); // [Function: nodeFetch]
+```
+
+---
+
+## requireConfigValue()
+
+### Function Signature
+
+```typescript
+requireConfigValue<Key extends Exclude<ShamelaConfigKey, 'fetchImplementation'>>(
+  key: Key
+): NonNullable<ShamelaConfig[Key]>
+```
+
+Retrieves a configuration value and throws if it is missing. This function is useful when a configuration value is required for an operation to proceed.
+
+### Parameters
+
+<ParamField path="key" type="Exclude<ShamelaConfigKey, 'fetchImplementation'>" required>
+  The configuration key to require. Valid keys:
+  - `'apiKey'`
+  - `'booksEndpoint'`
+  - `'masterPatchEndpoint'`
+  - `'sqlJsWasmUrl'`
+  
+  <Note>
+    The `'fetchImplementation'` key is excluded because it must be provided via `configure()` and cannot be required from environment variables.
+  </Note>
+</ParamField>
+
+### Return Value
+
+<ResponseField type="NonNullable<ShamelaConfig[Key]>">
+  The resolved configuration value (guaranteed to be non-null/non-undefined)
+</ResponseField>
+
+### Errors
+
+<ResponseField name="Error">
+  Throws an error if the configuration value is not defined
+  
+  Error message format: `"{ENV_VARIABLE_NAME} environment variable not set"`
+  
+  Example: `"SHAMELA_API_KEY environment variable not set"`
+</ResponseField>
+
+### Example
+
+```typescript
+import { configure, requireConfigValue } from 'shamela';
+
+configure({
+  apiKey: 'my-api-key',
+  booksEndpoint: 'https://shamela.ws/api/books',
+});
+
+// Success: value is present
+const apiKey = requireConfigValue('apiKey');
+console.log(apiKey); // 'my-api-key'
+
+try {
+  // Error: value is missing
+  const masterEndpoint = requireConfigValue('masterPatchEndpoint');
+} catch (error) {
+  console.error(error.message); // 'SHAMELA_API_MASTER_PATCH_ENDPOINT environment variable not set'
+}
+```
+
+### Attempting to Require fetchImplementation
+
+```typescript
+import { requireConfigValue } from 'shamela';
+
+try {
+  // This will throw because fetchImplementation cannot be required
+  const fetchImpl = requireConfigValue('fetchImplementation' as any);
+} catch (error) {
+  console.error(error.message); // 'fetchImplementation must be provided via configure().'
+}
+```
+
+### Using in Guard Functions
+
+```typescript
+import { requireConfigValue } from 'shamela';
+
+function ensureConfigured() {
+  requireConfigValue('apiKey');
+  requireConfigValue('booksEndpoint');
+  requireConfigValue('masterPatchEndpoint');
+}
+
+// Use before critical operations
+try {
+  ensureConfigured();
+  // Proceed with operations that require full configuration
+} catch (error) {
+  console.error('Configuration incomplete:', error.message);
+  process.exit(1);
+}
+```
+
+---
+
+## Configuration Resolution Order
+
+All configuration functions resolve values in the following priority order:
+
+1. **Runtime overrides** - Values set via `configure()`
+2. **Environment variables** - Values from process.env (Node.js only)
+3. **Undefined** - No value available
+
+```typescript
+import { configure, getConfigValue } from 'shamela';
+
+// Environment variable set: SHAMELA_API_KEY="env-key"
+
+console.log(getConfigValue('apiKey')); // 'env-key' (from environment)
+
+configure({ apiKey: 'runtime-key' });
+
+console.log(getConfigValue('apiKey')); // 'runtime-key' (runtime override takes precedence)
+```
+
+## Environment Variable Mapping
+
+| Configuration Key | Environment Variable |
+|-------------------|---------------------|
+| `apiKey` | `SHAMELA_API_KEY` |
+| `booksEndpoint` | `SHAMELA_API_BOOKS_ENDPOINT` |
+| `masterPatchEndpoint` | `SHAMELA_API_MASTER_PATCH_ENDPOINT` |
+| `sqlJsWasmUrl` | `SHAMELA_SQLJS_WASM_URL` |
+| `fetchImplementation` | Not available |
+
+## See Also
+
+- [configure()](/api/configuration/configure) - Set runtime configuration
+- [resetConfig()](/api/configuration/reset-config) - Clear runtime configuration

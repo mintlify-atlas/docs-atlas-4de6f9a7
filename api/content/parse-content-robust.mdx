@@ -1,0 +1,88 @@
+---
+title: parseContentRobust()
+description: Parse Shamela HTML content into structured lines while preserving heading hierarchy
+---
+
+## Overview
+
+Parses Shamela HTML content into structured lines while preserving headings. This is the primary function for processing raw Shamela page content into a format that preserves title hierarchy and Arabic punctuation.
+
+## Signature
+
+```typescript
+parseContentRobust(content: string): Line[]
+```
+
+## Parameters
+
+<ParamField path="content" type="string" required>
+  The raw HTML markup representing a page
+</ParamField>
+
+## Returns
+
+<ResponseField name="Line[]" type="array">
+  An array of Line objects containing text and optional IDs
+  
+  <Expandable title="Line properties">
+    <ResponseField name="id" type="string" optional>
+      Title identifier extracted from `data-type="title"` spans
+    </ResponseField>
+    <ResponseField name="text" type="string">
+      The text content of the line
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Behavior
+
+- Normalizes line endings to Unix-style (`\n`) before processing
+- Fast path optimization when no `<span>` tags are present
+- Preserves title hierarchy from `<span data-type="title" id="...">` elements
+- Merges punctuation-only lines into preceding titles
+- Handles nested spans and maintains title context across line breaks
+- Filters out empty lines from the result
+
+## Example
+
+```typescript
+import { parseContentRobust } from 'shamela';
+
+const rawHtml = `
+<span data-type="title" id="toc-123">الباب الأول</span>
+النص العادي
+<span data-type="title" id="toc-456">الباب الثاني</span>
+نص آخر
+`;
+
+const lines = parseContentRobust(rawHtml);
+
+lines.forEach((line) => {
+  if (line.id) {
+    console.log(`Title [${line.id}]: ${line.text}`);
+  } else {
+    console.log(`Text: ${line.text}`);
+  }
+});
+
+// Output:
+// Title [123]: الباب الأول
+// Text: النص العادي
+// Title [456]: الباب الثاني
+// Text: نص آخر
+```
+
+## Processing Pipeline
+
+1. **Normalize line endings** - Convert all line endings to `\n`
+2. **Fast path check** - Skip tokenization if no spans present
+3. **Tokenize HTML** - Break HTML into structural tokens
+4. **Process tokens** - Extract text and title metadata
+5. **Merge punctuation** - Combine dangling punctuation with titles
+6. **Filter empties** - Remove empty lines
+
+## Related Functions
+
+- [`removeTagsExceptSpan()`](/api/content/remove-tags-except-span) - Strip all tags except spans before parsing
+- [`normalizeLineEndings()`](/api/content/html-processing#normalizelineendings) - Normalize line endings
+- [`convertContentToMarkdown()`](/api/content/markdown-conversion#convertcontenttomarkdown) - Full pipeline including this function

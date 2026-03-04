@@ -1,0 +1,332 @@
+---
+title: Node.js Usage
+description: Using Shamela in standard Node.js environments
+---
+
+## Overview
+
+For simple Node.js scripts and applications, Shamela automatically detects the WASM file location. You only need to configure API credentials.
+
+## Quick Start
+
+### Basic Setup
+
+```typescript
+import { configure, getBook } from 'shamela';
+
+// Configure API credentials
+configure({
+  apiKey: process.env.SHAMELA_API_KEY,
+  booksEndpoint: process.env.SHAMELA_BOOKS_ENDPOINT,
+  masterPatchEndpoint: process.env.SHAMELA_MASTER_ENDPOINT,
+  // sqlJsWasmUrl is auto-detected in standard Node.js
+});
+
+// Use the library
+const book = await getBook(26592);
+console.log(`Downloaded book with ${book.pages.length} pages`);
+```
+
+### Environment Variables
+
+Create a `.env` file in your project root:
+
+```bash
+SHAMELA_API_KEY=your_api_key_here
+SHAMELA_API_BOOKS_ENDPOINT=https://SHAMELA_INSTANCE.ws/api/books
+SHAMELA_API_MASTER_PATCH_ENDPOINT=https://SHAMELA_INSTANCE.ws/api/master_patch
+```
+
+<Warning>
+This library requires an API key to access Shamela's APIs. For API key inquiries, please email: [mail@shamela.ws](mailto:mail@shamela.ws)
+</Warning>
+
+## Common Patterns
+
+### Downloading Books
+
+```typescript
+import { downloadBook, getBookMetadata } from 'shamela';
+
+const bookId = 26592;
+
+// Download as JSON
+await downloadBook(bookId, {
+  outputFile: { path: './book.json' }
+});
+
+// Download as SQLite
+await downloadBook(bookId, {
+  outputFile: { path: './book.db' }
+});
+
+// With pre-fetched metadata (avoids extra HTTP call)
+const metadata = await getBookMetadata(bookId);
+await downloadBook(bookId, {
+  bookMetadata: metadata,
+  outputFile: { path: `./book_${bookId}.json` }
+});
+```
+
+### Retrieving Book Data
+
+```typescript
+import { getBook } from 'shamela';
+
+const book = await getBook(26592);
+
+console.log(`Book has ${book.pages.length} pages`);
+
+// Display table of contents
+book.titles?.forEach(title => {
+  console.log(`${title.id}: ${title.content} (Page ${title.page})`);
+});
+
+// Access page content
+const firstPage = book.pages[0];
+console.log(firstPage.content.substring(0, 100));
+```
+
+### Downloading Master Database
+
+```typescript
+import { downloadMasterDatabase, getMaster } from 'shamela';
+
+// Download as SQLite
+const dbPath = await downloadMasterDatabase({
+  outputFile: { path: './shamela_master.db' }
+});
+console.log(`Downloaded to: ${dbPath}`);
+
+// Download as JSON
+const jsonPath = await downloadMasterDatabase({
+  outputFile: { path: './shamela_master.json' }
+});
+
+// Retrieve master data in memory
+const master = await getMaster();
+console.log(master.version);
+console.log(master.books.length);
+console.log(master.authors.length);
+console.log(master.categories.length);
+```
+
+### Getting Book Metadata
+
+```typescript
+import { getBookMetadata } from 'shamela';
+
+const metadata = await getBookMetadata(26592);
+console.log(metadata.majorReleaseUrl);
+console.log(metadata.minorReleaseUrl);
+
+// Check for updates from a specific version
+const updates = await getBookMetadata(26592, {
+  majorVersion: 1,
+  minorVersion: 0
+});
+```
+
+### Getting Master Metadata
+
+```typescript
+import { getMasterMetadata } from 'shamela';
+
+const metadata = await getMasterMetadata();
+console.log(metadata.url);     // Download URL
+console.log(metadata.version); // Version number
+
+// Check for updates from a specific version
+const updates = await getMasterMetadata(5);
+```
+
+## Working with Book Data
+
+### BookData Type
+
+```typescript
+type BookData = {
+  pages: Page[];
+  titles: Title[];
+};
+
+type Page = {
+  id: number;
+  content: string;
+  part?: string;
+  page?: number;
+  number?: string;
+};
+
+type Title = {
+  id: number;
+  content: string;
+  page: number;
+  parent?: number;
+};
+```
+
+### MasterData Type
+
+```typescript
+type MasterData = {
+  authors: Author[];
+  books: Book[];
+  categories: Category[];
+  version: number;
+};
+```
+
+### Denormalizing Master Data
+
+```typescript
+import { getMaster, denormalizeBooks } from 'shamela';
+
+const master = await getMaster();
+const books = denormalizeBooks(master);
+
+const library = books[0];
+console.log(library.name);
+console.log(library.author.name);
+console.log(library.category.name);
+console.log(library.metadata.date);
+```
+
+<Note>
+`denormalizeBooks()` resolves relationships within `MasterData`, replacing author and category IDs with their respective objects and parsing complex fields like `metadata` and `pdf_links`.
+</Note>
+
+## Getting Book Covers
+
+```typescript
+import { getCoverUrl, getMaster } from 'shamela';
+
+const master = await getMaster();
+
+// Generate cover URLs for all books
+master.books.forEach(book => {
+  const coverUrl = getCoverUrl(book.id);
+  console.log(`${book.name}: ${coverUrl}`);
+});
+
+// Single book cover
+const coverUrl = getCoverUrl(26592);
+// Returns: "https://shamela.ws/covers/26592.jpg"
+```
+
+## Processing Content
+
+For content processing utilities, see the [Content Processing Guide](/guides/content-processing).
+
+```typescript
+import { getBook } from 'shamela';
+import {
+  mapPageCharacterContent,
+  splitPageBodyFromFooter,
+  removeTagsExceptSpan,
+  parseContentRobust,
+} from 'shamela/content';
+
+const book = await getBook(26592);
+const page = book.pages[0];
+
+// Process content
+const clean = removeTagsExceptSpan(mapPageCharacterContent(page.content));
+const [body, footnotes] = splitPageBodyFromFooter(clean);
+const lines = parseContentRobust(body);
+
+lines.forEach((line) => console.log(line.id, line.text));
+```
+
+## Error Handling
+
+```typescript
+import { getBook, requireConfigValue } from 'shamela';
+
+try {
+  // Validate configuration before making requests
+  requireConfigValue('apiKey');
+  requireConfigValue('booksEndpoint');
+  
+  const book = await getBook(26592);
+  console.log('Success:', book.pages.length);
+} catch (error) {
+  if (error.message.includes('environment variable not set')) {
+    console.error('Configuration error:', error.message);
+  } else {
+    console.error('API error:', error.message);
+  }
+}
+```
+
+## Custom Writers
+
+For advanced use cases, you can provide a custom writer instead of a file path:
+
+```typescript
+import { downloadBook } from 'shamela';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+
+const s3 = new S3Client({ region: 'us-east-1' });
+
+await downloadBook(26592, {
+  outputFile: {
+    writer: async (data) => {
+      await s3.send(new PutObjectCommand({
+        Bucket: 'my-bucket',
+        Key: 'book-26592.db',
+        Body: data,
+      }));
+    }
+  }
+});
+```
+
+## TypeScript Support
+
+Shamela is written in TypeScript and provides full type definitions:
+
+```typescript
+import type {
+  BookData,
+  MasterData,
+  Page,
+  Title,
+  Author,
+  Book,
+  Category,
+  ShamelaConfig,
+  DownloadBookOptions,
+  GetBookMetadataOptions,
+} from 'shamela';
+```
+
+## Best Practices
+
+<Tip>
+**Pre-fetch metadata** when downloading multiple books to avoid redundant HTTP calls:
+
+```typescript
+const metadata = await getBookMetadata(bookId);
+await downloadBook(bookId, { bookMetadata: metadata, outputFile });
+```
+</Tip>
+
+<Tip>
+**Use environment variables** for configuration instead of hardcoding credentials.
+</Tip>
+
+<Warning>
+**Configure once** at application startup, before making any API calls.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/guides/configuration">
+    Learn about runtime configuration options
+  </Card>
+  <Card title="Content Processing" icon="code" href="/guides/content-processing">
+    Process and transform book content
+  </Card>
+</CardGroup>

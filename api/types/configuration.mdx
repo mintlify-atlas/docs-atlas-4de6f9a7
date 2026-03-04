@@ -1,0 +1,180 @@
+---
+title: 'Configuration Types'
+description: 'Types for configuring the Shamela library runtime'
+---
+
+## ShamelaConfig
+
+Runtime configuration for the Shamela library.
+
+```typescript
+type ShamelaConfig = {
+  apiKey?: string;
+  booksEndpoint?: string;
+  masterPatchEndpoint?: string;
+  sqlJsWasmUrl?: string;
+  fetchImplementation?: typeof fetch;
+};
+```
+
+<ResponseField name="apiKey" type="string">
+  API key used to authenticate against Shamela services. Contact [mail@shamela.ws](mailto:mail@shamela.ws) for API access.
+</ResponseField>
+
+<ResponseField name="booksEndpoint" type="string">
+  Endpoint URL for book metadata and downloads. Required for book-related operations.
+</ResponseField>
+
+<ResponseField name="masterPatchEndpoint" type="string">
+  Endpoint URL for master database metadata and patches. Required for master database operations.
+</ResponseField>
+
+<ResponseField name="sqlJsWasmUrl" type="string">
+  Override path or URL for the sql.js WASM file. Auto-detected in standard Node.js environments. Required for bundled environments (Next.js, webpack, Turbopack).
+</ResponseField>
+
+<ResponseField name="fetchImplementation" type="typeof fetch">
+  Custom fetch implementation for environments without a global fetch function
+</ResponseField>
+
+---
+
+## OutputOptions
+
+Defines where to write downloaded database files.
+
+```typescript
+type OutputOptions = 
+  | { path: string; writer?: never }
+  | { writer: (payload: string | Uint8Array) => Promise<void> | void; path?: undefined };
+```
+
+### Node.js Output
+
+<ResponseField name="path" type="string" required>
+  Output file path for Node.js environments. Supports `.db`, `.sqlite`, or `.json` extensions.
+</ResponseField>
+
+### Custom Output
+
+<ResponseField name="writer" type="(payload: string | Uint8Array) => Promise<void> | void" required>
+  Custom writer function used when path is not provided. Receives the file content as a string (for JSON) or Uint8Array (for SQLite).
+</ResponseField>
+
+---
+
+## Usage Examples
+
+### Standard Node.js Configuration
+
+```typescript
+import { configure } from 'shamela';
+
+configure({
+  apiKey: process.env.SHAMELA_API_KEY,
+  booksEndpoint: process.env.SHAMELA_BOOKS_ENDPOINT,
+  masterPatchEndpoint: process.env.SHAMELA_MASTER_ENDPOINT,
+  // sqlJsWasmUrl is auto-detected
+});
+```
+
+### Next.js / Bundled Environments
+
+```typescript
+import { configure } from 'shamela';
+import { join } from 'node:path';
+
+configure({
+  sqlJsWasmUrl: join(process.cwd(), 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm'),
+  apiKey: process.env.SHAMELA_API_KEY,
+  booksEndpoint: process.env.SHAMELA_BOOKS_ENDPOINT,
+  masterPatchEndpoint: process.env.SHAMELA_MASTER_ENDPOINT,
+});
+```
+
+### Browser Configuration
+
+```typescript
+import { configure } from 'shamela';
+
+configure({
+  apiKey: 'your-api-key',
+  booksEndpoint: 'https://shamela.ws/api/books',
+  masterPatchEndpoint: 'https://shamela.ws/api/master_patch',
+  // Automatically uses CDN WASM in browsers
+});
+```
+
+### Custom Fetch Implementation
+
+```typescript
+import { configure } from 'shamela';
+import nodeFetch from 'node-fetch';
+
+configure({
+  apiKey: process.env.SHAMELA_API_KEY,
+  booksEndpoint: process.env.SHAMELA_BOOKS_ENDPOINT,
+  masterPatchEndpoint: process.env.SHAMELA_MASTER_ENDPOINT,
+  fetchImplementation: nodeFetch as typeof fetch,
+});
+```
+
+### File Output Options
+
+```typescript
+import { downloadBook } from 'shamela';
+
+// Download as SQLite
+await downloadBook(26592, {
+  outputFile: { path: './book.db' }
+});
+
+// Download as JSON
+await downloadBook(26592, {
+  outputFile: { path: './book.json' }
+});
+
+// Custom writer (for non-Node.js environments)
+await downloadBook(26592, {
+  outputFile: {
+    writer: async (data) => {
+      // Handle the data in a custom way
+      await customStorageAPI.write(data);
+    }
+  }
+});
+```
+
+## Configuration Management
+
+The library provides helper functions for managing configuration:
+
+```typescript
+import { 
+  configure, 
+  getConfig, 
+  getConfigValue, 
+  requireConfigValue,
+  resetConfig 
+} from 'shamela';
+
+// Set configuration
+configure({ apiKey: 'my-key' });
+
+// Get all config
+const config = getConfig();
+
+// Get specific value (returns undefined if not set)
+const apiKey = getConfigValue('apiKey');
+
+// Require a value (throws if not set)
+const endpoint = requireConfigValue('booksEndpoint');
+
+// Reset to defaults
+resetConfig();
+```
+
+## Related Types
+
+- [BookData](/api/types/book-data) - Book content structure
+- [MasterData](/api/types/master-data) - Master database structure

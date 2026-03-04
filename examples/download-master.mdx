@@ -1,0 +1,123 @@
+---
+title: Download Master Database
+description: Examples of downloading the Shamela master database containing all books, authors, and categories
+---
+
+The master database contains comprehensive information about all books, authors, and categories in the Shamela library.
+
+## Basic Download as SQLite
+
+Download the master database as a SQLite file:
+
+```typescript
+import { downloadMasterDatabase } from 'shamela';
+
+const dbPath = await downloadMasterDatabase({
+  outputFile: { path: './shamela_master.db' }
+});
+console.log(`Downloaded to: ${dbPath}`);
+```
+
+## Download as JSON
+
+Export the master database as JSON for easier inspection:
+
+```typescript
+import { downloadMasterDatabase } from 'shamela';
+
+const jsonPath = await downloadMasterDatabase({
+  outputFile: { path: './shamela_master.json' }
+});
+console.log(`Downloaded to: ${jsonPath}`);
+```
+
+## With Pre-fetched Metadata
+
+Optimize by pre-fetching metadata to avoid an extra HTTP call:
+
+```typescript
+import { getMasterMetadata, downloadMasterDatabase } from 'shamela';
+
+// Fetch metadata first
+const metadata = await getMasterMetadata();
+console.log(`Latest version: ${metadata.version}`);
+console.log(`Download URL: ${metadata.url}`);
+
+// Use metadata in download
+await downloadMasterDatabase({
+  masterMetadata: metadata,
+  outputFile: { path: './master.db' }
+});
+```
+
+## Check for Updates
+
+Check if there are updates available from a specific version:
+
+```typescript
+import { getMasterMetadata } from 'shamela';
+
+// Check for updates from version 5
+const updates = await getMasterMetadata(5);
+
+if (updates.version > 5) {
+  console.log(`New version available: ${updates.version}`);
+  console.log(`Download from: ${updates.url}`);
+} else {
+  console.log('No updates available');
+}
+```
+
+<Accordion title="Response Structure">
+
+### GetMasterMetadataResponsePayload
+
+```typescript
+type GetMasterMetadataResponsePayload = {
+  url: string;      // Download URL for the master database patch
+  version: number;  // Latest version number
+};
+```
+
+### Example Response
+
+```json
+{
+  "url": "https://shamela.ws/api/master_patch/download/123.zip",
+  "version": 42
+}
+```
+
+</Accordion>
+
+## File Format Detection
+
+The output format is automatically detected from the file extension:
+
+```typescript
+import { downloadMasterDatabase } from 'shamela';
+
+// SQLite format (.db or .sqlite)
+await downloadMasterDatabase({
+  outputFile: { path: './master.db' }      // SQLite
+});
+
+await downloadMasterDatabase({
+  outputFile: { path: './master.sqlite' }  // SQLite
+});
+
+// JSON format
+await downloadMasterDatabase({
+  outputFile: { path: './master.json' }    // JSON
+});
+```
+
+<Note>
+The library automatically validates that all required tables (books, authors, categories) are present in the downloaded master database.
+</Note>
+
+## Related Functions
+
+- [getMaster](/api-reference/data-access/get-master) - Retrieve master data as a JavaScript object
+- [denormalizeBooks](/api-reference/data-access/denormalize-books) - Resolve relationships in master data
+- [getMasterMetadata](/api-reference/metadata-downloads/get-master-metadata) - Fetch master database metadata

@@ -1,0 +1,293 @@
+---
+title: HTML Processing Functions
+description: Utility functions for processing and normalizing Shamela HTML content
+---
+
+## Overview
+
+These functions provide low-level HTML processing utilities for working with Shamela content. They handle line ending normalization, HTML tag stripping, hadeeth tag normalization, and content positioning.
+
+---
+
+## normalizeLineEndings()
+
+Normalizes line endings to Unix-style (`\n`).
+
+### Signature
+
+```typescript
+normalizeLineEndings(content: string): string
+```
+
+### Parameters
+
+<ParamField path="content" type="string" required>
+  Raw content with potentially mixed line endings
+</ParamField>
+
+### Returns
+
+<ResponseField name="string" type="string">
+  Content with all line endings normalized to `\n`
+</ResponseField>
+
+### Behavior
+
+- Converts Windows (`\r\n`) line endings to Unix (`\n`)
+- Converts old Mac (`\r`) line endings to Unix (`\n`)
+- Optimized: only processes if content contains `\r`
+- Ensures consistent pattern matching across platforms
+
+### Example
+
+```typescript
+import { normalizeLineEndings } from 'shamela';
+
+const windowsText = 'Line 1\r\nLine 2\r\nLine 3';
+const normalized = normalizeLineEndings(windowsText);
+console.log(normalized); // "Line 1\nLine 2\nLine 3"
+```
+
+---
+
+## stripHtmlTags()
+
+Strips all HTML tags from content, keeping only text.
+
+### Signature
+
+```typescript
+stripHtmlTags(html: string): string
+```
+
+### Parameters
+
+<ParamField path="html" type="string" required>
+  HTML content
+</ParamField>
+
+### Returns
+
+<ResponseField name="string" type="string">
+  Plain text content with all HTML tags removed
+</ResponseField>
+
+### Example
+
+```typescript
+import { stripHtmlTags } from 'shamela';
+
+const html = '<span data-type="title">العنوان</span><p>النص</p>';
+const text = stripHtmlTags(html);
+console.log(text); // "العنوانالنص"
+```
+
+---
+
+## normalizeHtml()
+
+Normalizes Shamela HTML for CSS styling by converting hadeeth tags to standard span elements.
+
+### Signature
+
+```typescript
+normalizeHtml(html: string): string
+```
+
+### Parameters
+
+<ParamField path="html" type="string" required>
+  Shamela HTML content
+</ParamField>
+
+### Returns
+
+<ResponseField name="string" type="string">
+  HTML with normalized hadeeth tags
+</ResponseField>
+
+### Transformations
+
+- `<hadeeth-N>` → `<span class="hadeeth">`
+- `</hadeeth>` → `</span>`
+- `<hadeeth>` → `</span>`
+
+### Example
+
+```typescript
+import { normalizeHtml } from 'shamela';
+
+const html = '<hadeeth-1>متن الحديث</hadeeth>';
+const normalized = normalizeHtml(html);
+console.log(normalized);
+// => '<span class="hadeeth">متن الحديث</span>'
+```
+
+### Use Case
+
+Prepare Shamela HTML for browser rendering with CSS:
+
+```typescript
+import { normalizeHtml } from 'shamela';
+
+const displayHtml = normalizeHtml(rawContent);
+// Now you can style .hadeeth spans with CSS
+```
+
+```css
+.hadeeth {
+  background-color: #f0f0f0;
+  padding: 0.5rem;
+  border-left: 3px solid #333;
+}
+```
+
+---
+
+## normalizeTitleSpans()
+
+Normalizes consecutive Shamela-style title spans to prevent multiple headings on one line.
+
+### Signature
+
+```typescript
+normalizeTitleSpans(
+  html: string,
+  options: NormalizeTitleSpanOptions
+): string
+```
+
+### Parameters
+
+<ParamField path="html" type="string" required>
+  HTML content with title spans
+</ParamField>
+
+<ParamField path="options" type="NormalizeTitleSpanOptions" required>
+  Configuration for handling consecutive title spans
+  
+  <Expandable title="NormalizeTitleSpanOptions properties">
+    <ParamField path="strategy" type="'splitLines' | 'merge' | 'hierarchy'" required>
+      How to handle adjacent title spans:
+      - `splitLines`: Insert `\n` between spans (recommended)
+      - `merge`: Combine into single span with separator
+      - `hierarchy`: Convert subsequent spans to `data-type="subtitle"`
+    </ParamField>
+    
+    <ParamField path="separator" type="string" default=" — ">
+      Used only for `merge` strategy
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Returns
+
+<ResponseField name="string" type="string">
+  HTML with normalized title spans
+</ResponseField>
+
+### Problem
+
+Shamela exports sometimes contain adjacent title spans:
+```html
+<span data-type="title">باب الميم</span><span data-type="title">من اسمه محمد</span>
+```
+
+Converting each to markdown produces: `## باب الميم ## من اسمه محمد`
+
+### Solutions
+
+#### splitLines Strategy (Recommended)
+```typescript
+import { normalizeTitleSpans } from 'shamela';
+
+const html = '<span data-type="title">A</span><span data-type="title">B</span>';
+const normalized = normalizeTitleSpans(html, { strategy: 'splitLines' });
+// => '<span data-type="title">A</span>\n<span data-type="title">B</span>'
+```
+
+#### merge Strategy
+```typescript
+const normalized = normalizeTitleSpans(html, {
+  strategy: 'merge',
+  separator: ' — ',
+});
+// => '<span data-type="title">A — B</span>'
+```
+
+#### hierarchy Strategy
+```typescript
+const normalized = normalizeTitleSpans(html, { strategy: 'hierarchy' });
+// => '<span data-type="title">A</span>\n<span data-type="subtitle">B</span>'
+```
+
+---
+
+## moveContentAfterLineBreakIntoSpan()
+
+Moves content that appears after a line break but before a title span into the span.
+
+### Signature
+
+```typescript
+moveContentAfterLineBreakIntoSpan(html: string): string
+```
+
+### Parameters
+
+<ParamField path="html" type="string" required>
+  HTML content with potential pre-title text
+</ParamField>
+
+### Returns
+
+<ResponseField name="string" type="string">
+  HTML with pre-title text moved inside title spans
+</ResponseField>
+
+### Problem
+
+Chapter numbers or prefixes are sometimes placed outside the title span:
+```html
+\r١ - <span data-type="title">الباب الأول</span>
+```
+
+### Solution
+
+```typescript
+import { moveContentAfterLineBreakIntoSpan } from 'shamela';
+
+const html = '\r١ - <span data-type="title">الباب الأول</span>';
+const fixed = moveContentAfterLineBreakIntoSpan(html);
+// => '\r<span data-type="title">١ - الباب الأول</span>'
+```
+
+### Use Case
+
+Ensure chapter numbers are included in title extraction:
+
+```typescript
+import {
+  moveContentAfterLineBreakIntoSpan,
+  parseContentRobust,
+} from 'shamela';
+
+let html = rawContent;
+html = moveContentAfterLineBreakIntoSpan(html);
+const lines = parseContentRobust(html);
+
+// Now chapter numbers are included in title text
+lines.forEach(line => {
+  if (line.id) {
+    console.log(`Title: ${line.text}`); // Includes "١ - "
+  }
+});
+```
+
+---
+
+## Related Functions
+
+- [`removeTagsExceptSpan()`](/api/content/remove-tags-except-span) - Remove tags while keeping spans
+- [`htmlToMarkdown()`](/api/content/markdown-conversion#htmltomarkdown) - Convert HTML to Markdown
+- [`convertContentToMarkdown()`](/api/content/markdown-conversion#convertcontenttomarkdown) - Full conversion pipeline

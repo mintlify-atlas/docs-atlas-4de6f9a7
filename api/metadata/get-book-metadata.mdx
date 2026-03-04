@@ -1,0 +1,170 @@
+---
+title: 'getBookMetadata'
+description: 'Retrieves metadata for a specific book from the Shamela API'
+---
+
+## Overview
+
+This function fetches book release information including major and minor release URLs and version numbers from the Shamela web service.
+
+## Function Signature
+
+```typescript
+getBookMetadata(id: number, options?: GetBookMetadataOptions): Promise<GetBookMetadataResponsePayload>
+```
+
+## Parameters
+
+<ParamField path="id" type="number" required>
+  The unique identifier of the book to fetch metadata for
+</ParamField>
+
+<ParamField path="options" type="GetBookMetadataOptions">
+  Optional parameters for specifying major and minor versions
+  
+  <Expandable title="properties">
+    <ParamField path="majorVersion" type="number" default="0">
+      Major version number to check for updates
+    </ParamField>
+    
+    <ParamField path="minorVersion" type="number" default="0">
+      Minor version number to check for updates
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Returns
+
+<ResponseField name="GetBookMetadataResponsePayload" type="object">
+  Book metadata including release URLs and versions
+  
+  <Expandable title="properties">
+    <ResponseField name="majorRelease" type="number" required>
+      Major release version number
+    </ResponseField>
+    
+    <ResponseField name="majorReleaseUrl" type="string" required>
+      Download URL for the major release of the book
+    </ResponseField>
+    
+    <ResponseField name="minorRelease" type="number">
+      Minor release version number (if available)
+    </ResponseField>
+    
+    <ResponseField name="minorReleaseUrl" type="string">
+      Download URL for the minor release/patch (if available)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Examples
+
+### Fetch Book Metadata
+
+```typescript
+import { getBookMetadata } from 'shamela';
+
+const metadata = await getBookMetadata(26592);
+
+console.log(`Major Release: v${metadata.majorRelease}`);
+console.log(`Download URL: ${metadata.majorReleaseUrl}`);
+
+if (metadata.minorReleaseUrl) {
+  console.log(`Patch available: v${metadata.minorRelease}`);
+  console.log(`Patch URL: ${metadata.minorReleaseUrl}`);
+}
+```
+
+### Check for Updates
+
+```typescript
+const bookId = 123;
+const currentMajor = 1;
+const currentMinor = 2;
+
+const metadata = await getBookMetadata(bookId, {
+  majorVersion: currentMajor,
+  minorVersion: currentMinor
+});
+
+if (metadata.majorRelease > currentMajor) {
+  console.log('Major update available!');
+} else if (metadata.minorRelease && metadata.minorRelease > currentMinor) {
+  console.log('Patch update available!');
+} else {
+  console.log('Book is up to date');
+}
+```
+
+### Fetch Before Downloading
+
+```typescript
+import { getBookMetadata, downloadBook } from 'shamela';
+
+const bookId = 26592;
+
+// Fetch metadata first to check versions
+const metadata = await getBookMetadata(bookId);
+console.log(`Downloading book v${metadata.majorRelease}`);
+
+// Use metadata in download to avoid re-fetching
+await downloadBook(bookId, {
+  bookMetadata: metadata,
+  outputFile: { path: `./book_${bookId}.json` }
+});
+```
+
+## Response Details
+
+### Major vs Minor Releases
+
+<Info>
+  - **Major Release**: The main book database file
+  - **Minor Release**: Optional patch file with corrections or additions
+  - If a minor release exists, it should be applied on top of the major release
+</Info>
+
+The `downloadBook` function automatically handles applying patches when both releases are available.
+
+## Error Handling
+
+<Warning>
+  This function throws an error when:
+  - Required environment variables (`booksEndpoint`) are not set
+  - API request fails
+  - Network connection issues occur
+  - Invalid book ID is provided
+</Warning>
+
+```typescript
+try {
+  const metadata = await getBookMetadata(26592);
+} catch (error) {
+  if (error.message.includes('404')) {
+    console.error('Book not found');
+  } else {
+    console.error('Failed to fetch metadata:', error.message);
+  }
+}
+```
+
+## Configuration Requirements
+
+<Note>
+  Ensure the `booksEndpoint` is configured before calling this function:
+</Note>
+
+```typescript
+import { configure } from 'shamela';
+
+configure({
+  apiKey: process.env.SHAMELA_API_KEY,
+  booksEndpoint: process.env.SHAMELA_BOOKS_ENDPOINT
+});
+```
+
+## Related Functions
+
+- [downloadBook](/api/metadata/download-book) - Download a book using this metadata
+- [getBook](/api/data/get-book) - Retrieve book data as a JavaScript object
+- [getCoverUrl](/api/metadata/get-cover-url) - Generate the cover image URL for a book

@@ -1,0 +1,75 @@
+---
+title: mapPageCharacterContent()
+description: Sanitize page content by applying regex replacement rules
+---
+
+## Overview
+
+Sanitizes page content by applying regex-based replacement rules tuned for Shamela sources. This function normalizes Arabic text and removes common artifacts from the Shamela export format.
+
+## Signature
+
+```typescript
+mapPageCharacterContent(
+  text: string,
+  rules?: Record<string, string>
+): string
+```
+
+## Parameters
+
+<ParamField path="text" type="string" required>
+  The text to clean
+</ParamField>
+
+<ParamField path="rules" type="Record<string, string>" optional>
+  Optional custom replacement rules as regex pattern/replacement pairs. Defaults to `DEFAULT_MAPPING_RULES` which includes:
+  - Footnote marker removal
+  - Arabic character normalization
+  - Whitespace cleanup
+  - Diacritical mark processing
+</ParamField>
+
+## Returns
+
+<ResponseField name="string" type="string">
+  The sanitized content with all rules applied
+</ResponseField>
+
+## Example
+
+```typescript
+import { mapPageCharacterContent } from 'shamela';
+
+const rawContent = 'النص مع الحواشي[١] والرموز';
+const cleaned = mapPageCharacterContent(rawContent);
+console.log(cleaned); // Normalized text
+```
+
+## Custom Rules
+
+You can extend the default rules with custom mappings:
+
+```typescript
+import { mapPageCharacterContent } from 'shamela/content';
+import { DEFAULT_MAPPING_RULES } from 'shamela/constants';
+
+const customRules = {
+  ...DEFAULT_MAPPING_RULES,
+  'pattern1': 'replacement1',
+  'pattern2': 'replacement2',
+};
+
+const processed = mapPageCharacterContent(rawContent, customRules);
+```
+
+## Performance
+
+- Rules are compiled into RegExp objects and cached for reuse
+- Default rules are pre-compiled for optimal performance
+- Custom rules are compiled on first use
+
+## Related Functions
+
+- [`removeArabicNumericPageMarkers()`](/api/content/remove-arabic-numeric-page-markers) - Remove specific page markers
+- [`splitPageBodyFromFooter()`](/api/content/split-page-body-from-footer) - Separate footnotes from body

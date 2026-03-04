@@ -1,0 +1,333 @@
+---
+title: Browser Usage
+description: Using Shamela in browser environments and content-only exports
+---
+
+## Overview
+
+Shamela can be used in browsers with automatic CDN-hosted WASM files, or you can use the lightweight content-only export for processing pre-downloaded data.
+
+## Full API (with sql.js)
+
+For full database functionality in the browser, the library automatically uses a CDN-hosted WASM file:
+
+```typescript
+import { configure, getBook } from 'shamela';
+
+configure({
+  apiKey: 'your-api-key',
+  booksEndpoint: 'https://SHAMELA_INSTANCE.ws/api/books',
+  masterPatchEndpoint: 'https://SHAMELA_INSTANCE.ws/api/master_patch',
+  // Automatically uses: https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/sql-wasm.wasm
+});
+
+const book = await getBook(26592);
+console.log(`Downloaded book with ${book.pages.length} pages`);
+```
+
+<Warning>
+The full API includes sql.js (~900KB WASM). For content processing only, use the lightweight `shamela/content` export instead.
+</Warning>
+
+### Custom CDN
+
+You can specify a different CDN or self-hosted WASM file:
+
+```typescript
+import { configure } from 'shamela';
+
+configure({
+  sqlJsWasmUrl: 'https://your-cdn.com/sql-wasm.wasm',
+  apiKey: 'your-api-key',
+  booksEndpoint: 'https://SHAMELA_INSTANCE.ws/api/books',
+});
+```
+
+## Content-Only Export (Lightweight)
+
+If you only need content processing utilities without database functionality, use the `shamela/content` export:
+
+```typescript
+import {
+  mapPageCharacterContent,
+  splitPageBodyFromFooter,
+  removeTagsExceptSpan,
+  parseContentRobust,
+} from 'shamela/content';
+
+// Process content without loading sql.js (~1.5KB gzipped vs ~900KB)
+const clean = removeTagsExceptSpan(mapPageCharacterContent(rawContent));
+const [body, footnotes] = splitPageBodyFromFooter(clean);
+const lines = parseContentRobust(body);
+```
+
+### Available Exports from shamela/content
+
+- `parseContentRobust` - Parse HTML into structured lines preserving title spans
+- `mapPageCharacterContent` - Normalize Arabic text with mapping rules
+- `splitPageBodyFromFooter` - Separate body from footnotes
+- `removeArabicNumericPageMarkers` - Remove page markers
+- `removeTagsExceptSpan` - Strip HTML except spans
+- `htmlToMarkdown` - Convert Shamela HTML to Markdown (title spans → `##` headers)
+- `normalizeHtml` - Normalize hadeeth tags to standard spans
+- `normalizeLineEndings` - Normalize line endings to Unix-style (`\n`)
+- `stripHtmlTags` - Strip all HTML tags from content
+- `normalizeTitleSpans` - Handle consecutive title spans (merge, split, or hierarchy)
+- `moveContentAfterLineBreakIntoSpan` - Move pre-title text into the span
+- `convertContentToMarkdown` - Full pipeline: normalize spans → move pre-title text → convert to Markdown
+
+### Available Exports from shamela/transform
+
+- `denormalizeBooks` - Resolve relationships in MasterData to return rich book objects
+
+## Use Cases for Content-Only Export
+
+### Client-Side React/Next.js Components
+
+```typescript
+'use client';
+
+import { parseContentRobust, removeTagsExceptSpan } from 'shamela/content';
+import type { Line } from 'shamela/content';
+
+interface Props {
+  pageContent: string;
+}
+
+export function BookPage({ pageContent }: Props) {
+  const clean = removeTagsExceptSpan(pageContent);
+  const lines = parseContentRobust(clean);
+  
+  return (
+    <div>
+      {lines.map((line, i) => (
+        <p key={i} data-title-id={line.id}>
+          {line.text}
+        </p>
+      ))}
+    </div>
+  );
+}
+```
+
+### Processing Pre-Downloaded Data
+
+```typescript
+import {
+  mapPageCharacterContent,
+  splitPageBodyFromFooter,
+  htmlToMarkdown,
+} from 'shamela/content';
+
+// Load pre-downloaded book data
+const response = await fetch('/api/book/26592');
+const book = await response.json();
+
+// Process each page
+book.pages.forEach(page => {
+  const normalized = mapPageCharacterContent(page.content);
+  const [body, footnotes] = splitPageBodyFromFooter(normalized);
+  const markdown = htmlToMarkdown(body);
+  
+  console.log('Body:', markdown);
+  console.log('Footnotes:', footnotes);
+});
+```
+
+### Bundled Environments
+
+Avoid including sql.js in your bundle:
+
+```typescript
+// Instead of importing from 'shamela'
+import { getBook } from 'shamela'; // ❌ Includes sql.js (~900KB)
+
+// Import content utilities only
+import { parseContentRobust } from 'shamela/content'; // ✅ ~1.5KB
+```
+
+## Content Processing Examples
+
+### Parse HTML Content
+
+```typescript
+import { parseContentRobust } from 'shamela/content';
+
+const html = `
+  <span data-type="title" id="toc-123">Chapter One</span>
+  Some content here
+  <span data-type="title" id="toc-124">Chapter Two</span>
+  More content
+`;
+
+const lines = parseContentRobust(html);
+lines.forEach(line => {
+  console.log(`[${line.id || 'text'}] ${line.text}`);
+});
+// Output:
+// [123] Chapter One
+// [text] Some content here
+// [124] Chapter Two
+// [text] More content
+```
+
+### Normalize Arabic Content
+
+```typescript
+import { mapPageCharacterContent } from 'shamela/content';
+
+const raw = 'نص عربي مع علامات';
+const normalized = mapPageCharacterContent(raw);
+console.log(normalized);
+```
+
+### Split Body and Footnotes
+
+```typescript
+import { splitPageBodyFromFooter } from 'shamela/content';
+
+const content = 'Main content#\r[الهامش]\rFootnote content';
+const [body, footnotes] = splitPageBodyFromFooter(content);
+
+console.log('Body:', body);
+console.log('Footnotes:', footnotes);
+```
+
+### Convert to Markdown
+
+```typescript
+import { htmlToMarkdown } from 'shamela/content';
+
+const html = '<span data-type="title">Chapter One</span>\nSome content';
+const markdown = htmlToMarkdown(html);
+console.log(markdown);
+// Output: "## Chapter One\nSome content"
+```
+
+### Normalize Consecutive Titles
+
+```typescript
+import { normalizeTitleSpans } from 'shamela/content';
+
+const html = '<span data-type="title">باب الميم</span><span data-type="title">من اسمه محمد</span>';
+
+// Split into separate lines (recommended)
+const split = normalizeTitleSpans(html, { strategy: 'splitLines' });
+// => "<span data-type=\"title\">باب الميم</span>\n<span data-type=\"title\">من اسمه محمد</span>"
+
+// Merge into single title
+const merged = normalizeTitleSpans(html, { strategy: 'merge', separator: ' — ' });
+// => "<span data-type=\"title\">باب الميم — من اسمه محمد</span>"
+
+// Convert subsequent to subtitles
+const hierarchy = normalizeTitleSpans(html, { strategy: 'hierarchy' });
+// => "<span data-type=\"title\">باب الميم</span>\n<span data-type=\"subtitle\">من اسمه محمد</span>"
+```
+
+### Full Markdown Pipeline
+
+```typescript
+import { convertContentToMarkdown } from 'shamela/content';
+
+const html = '<span data-type="title">كتاب</span><span data-type="title">الإيمان</span>';
+const markdown = convertContentToMarkdown(html);
+console.log(markdown);
+// Output: "## كتاب\n## الإيمان"
+```
+
+## Custom Character Mapping Rules
+
+Extend default mapping rules for custom processing:
+
+```typescript
+import { mapPageCharacterContent } from 'shamela/content';
+import { DEFAULT_MAPPING_RULES } from 'shamela/constants';
+
+// Extend default rules with custom mappings
+const customRules = {
+  ...DEFAULT_MAPPING_RULES,
+  'customPattern': 'replacement',
+};
+
+const processed = mapPageCharacterContent(rawContent, customRules);
+```
+
+## TypeScript Support
+
+Content utilities include full type definitions:
+
+```typescript
+import type { Line, NormalizeTitleSpanOptions } from 'shamela/content';
+
+type Line = {
+  id?: string;
+  text: string;
+};
+
+type NormalizeTitleSpanOptions = {
+  strategy: 'splitLines' | 'merge' | 'hierarchy';
+  separator?: string;
+};
+```
+
+## Browser Fetch Configuration
+
+For older browsers or custom fetch implementations:
+
+```typescript
+import { configure } from 'shamela';
+import fetch from 'cross-fetch';
+
+configure({
+  fetchImplementation: fetch,
+  apiKey: 'your-api-key',
+  booksEndpoint: 'https://SHAMELA_INSTANCE.ws/api/books',
+});
+```
+
+## Bundle Size Comparison
+
+| Import | Gzipped Size | Use Case |
+|--------|-------------|----------|
+| `shamela` | ~900KB | Full database functionality |
+| `shamela/content` | ~1.5KB | Content processing only |
+| `shamela/transform` | ~0.5KB | Data transformation utilities |
+
+<Tip>
+Use `shamela/content` for client-side processing to keep your bundle size small.
+</Tip>
+
+## CORS Considerations
+
+When using the full API in browsers, ensure the Shamela API endpoints have appropriate CORS headers configured.
+
+```typescript
+// If you encounter CORS issues, you may need to proxy requests through your server
+const response = await fetch('/api/proxy/books/26592');
+const book = await response.json();
+```
+
+## Best Practices
+
+<Tip>
+**Use content-only exports** for client-side components to avoid bundling sql.js.
+</Tip>
+
+<Warning>
+**Never expose API keys** in client-side code. Proxy requests through your backend if needed.
+</Warning>
+
+<Note>
+**CDN-hosted WASM** is loaded automatically in browsers, but you can specify a custom URL if needed.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Content Processing" icon="code" href="/guides/content-processing">
+    Deep dive into content processing utilities
+  </Card>
+  <Card title="Next.js Usage" icon="react" href="/guides/nextjs-usage">
+    Using content exports in Next.js client components
+  </Card>
+</CardGroup>

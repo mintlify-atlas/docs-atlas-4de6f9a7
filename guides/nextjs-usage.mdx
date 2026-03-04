@@ -1,0 +1,402 @@
+---
+title: Next.js Integration
+description: Using Shamela in Next.js applications with App Router
+---
+
+## Overview
+
+Next.js and other bundlers require explicit WASM file configuration. This guide covers setup for Next.js App Router, Server Actions, and API Routes.
+
+<Warning>
+**Server-side only**: Shamela must be used in server-side code (Server Actions, API Routes, or Server Components). Never import in client components or `layout.tsx`.
+</Warning>
+
+## Setup
+
+### 1. Update next.config.ts
+
+Add `shamela` and `sql.js` to `serverExternalPackages`:
+
+```typescript
+import type { NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
+  serverExternalPackages: ['shamela', 'sql.js'],
+  // ... rest of your config
+};
+
+export default nextConfig;
+```
+
+### 2. Create Server Configuration File
+
+Create a server-only configuration file that explicitly sets the WASM path:
+
+```typescript
+// lib/shamela-server.ts
+import { configure } from 'shamela';
+import { join } from 'node:path';
+
+configure({
+  sqlJsWasmUrl: join(
+    process.cwd(),
+    'node_modules',
+    'sql.js',
+    'dist',
+    'sql-wasm.wasm'
+  ),
+  apiKey: process.env.SHAMELA_API_KEY,
+  booksEndpoint: process.env.SHAMELA_BOOKS_ENDPOINT,
+  masterPatchEndpoint: process.env.SHAMELA_MASTER_ENDPOINT,
+});
+
+export {
+  downloadBook,
+  getBook,
+  getBookMetadata,
+  getMaster,
+  downloadMasterDatabase,
+} from 'shamela';
+```
+
+<Note>
+This pattern ensures `configure()` is called before any Shamela functions are used.
+</Note>
+
+### 3. Configure Environment Variables
+
+Create `.env.local` in your project root:
+
+```bash
+SHAMELA_API_KEY=your_api_key_here
+SHAMELA_API_BOOKS_ENDPOINT=https://SHAMELA_INSTANCE.ws/api/books
+SHAMELA_API_MASTER_PATCH_ENDPOINT=https://SHAMELA_INSTANCE.ws/api/master_patch
+```
+
+<Warning>
+This library requires an API key to access Shamela's APIs. For API key inquiries, please email: [mail@shamela.ws](mailto:mail@shamela.ws)
+</Warning>
+
+## Usage Patterns
+
+### Server Actions
+
+Use Shamela in Server Actions for client-initiated requests:
+
+```typescript
+'use server';
+
+import { getBookMetadata, downloadBook } from '@/lib/shamela-server';
+
+export async function downloadBookAction(bookId: number) {
+  const metadata = await getBookMetadata(bookId);
+  return await downloadBook(bookId, {
+    bookMetadata: metadata,
+    outputFile: { path: `./books/${bookId}.db` }
+  });
+}
+
+export async function getBookDataAction(bookId: number) {
+  const { getBook } = await import('@/lib/shamela-server');
+  const book = await getBook(bookId);
+  return {
+    pageCount: book.pages.length,
+    titleCount: book.titles.length,
+  };
+}
+```
+
+### API Routes
+
+Use Shamela in API Routes for RESTful endpoints:
+
+```typescript
+// app/api/books/[id]/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { getBook } from '@/lib/shamela-server';
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const bookId = parseInt(params.id);
+    const book = await getBook(bookId);
+    
+    return NextResponse.json({
+      success: true,
+      data: {
+        pages: book.pages.length,
+        titles: book.titles.length,
+      },
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
+```
+
+### Server Components
+
+Use Shamela directly in Server Components:
+
+```typescript
+// app/book/[id]/page.tsx
+import { getBook } from '@/lib/shamela-server';
+
+type Props = {
+  params: { id: string };
+};
+
+export default async function BookPage({ params }: Props) {
+  const bookId = parseInt(params.id);
+  const book = await getBook(bookId);
+  
+  return (
+    <div>
+      <h1>Book {bookId}</h1>
+      <p>Pages: {book.pages.length}</p>
+      <p>Chapters: {book.titles.length}</p>
+      
+      <div>
+        {book.titles.map(title => (
+          <div key={title.id}>
+            <h2>{title.content}</h2>
+            <span>Page {title.page}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+## Client-Side Content Processing
+
+For client components, use the lightweight `shamela/content` export that doesn't include sql.js:
+
+```typescript
+'use client';
+
+import {
+  mapPageCharacterContent,
+  splitPageBodyFromFooter,
+  removeTagsExceptSpan,
+  parseContentRobust,
+} from 'shamela/content';
+
+export function ContentProcessor({ rawContent }: { rawContent: string }) {
+  // Process content without loading sql.js (~1.5KB gzipped vs ~900KB)
+  const clean = removeTagsExceptSpan(mapPageCharacterContent(rawContent));
+  const [body, footnotes] = splitPageBodyFromFooter(clean);
+  const lines = parseContentRobust(body);
+  
+  return (
+    <div>
+      {lines.map((line, i) => (
+        <p key={i} data-title-id={line.id}>
+          {line.text}
+        </p>
+      ))}
+    </div>
+  );
+}
+```
+
+<Tip>
+Use `shamela/content` for client-side components to avoid bundling sql.js WASM (~900KB).
+</Tip>
+
+## Downloading Files
+
+### To Local Filesystem
+
+```typescript
+'use server';
+
+import { downloadBook } from '@/lib/shamela-server';
+import { mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+
+export async function downloadBookToFile(bookId: number) {
+  const outputDir = join(process.cwd(), 'public', 'books');
+  await mkdir(outputDir, { recursive: true });
+  
+  const filePath = join(outputDir, `${bookId}.db`);
+  await downloadBook(bookId, {
+    outputFile: { path: filePath }
+  });
+  
+  return `/books/${bookId}.db`;
+}
+```
+
+### Custom Writer (Cloud Storage)
+
+```typescript
+'use server';
+
+import { downloadBook } from '@/lib/shamela-server';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+
+const s3 = new S3Client({ region: process.env.AWS_REGION });
+
+export async function uploadBookToS3(bookId: number) {
+  await downloadBook(bookId, {
+    outputFile: {
+      writer: async (data) => {
+        await s3.send(new PutObjectCommand({
+          Bucket: process.env.S3_BUCKET,
+          Key: `books/${bookId}.db`,
+          Body: data,
+        }));
+      }
+    }
+  });
+}
+```
+
+## Master Database
+
+```typescript
+'use server';
+
+import { getMaster, denormalizeBooks } from '@/lib/shamela-server';
+
+export async function getMasterBooksAction() {
+  const master = await getMaster();
+  const books = denormalizeBooks(master);
+  
+  return books.map(book => ({
+    id: book.id,
+    name: book.name,
+    authorName: book.author.name,
+    categoryName: book.category.name,
+  }));
+}
+```
+
+## Error Handling
+
+```typescript
+'use server';
+
+import { getBook, requireConfigValue } from '@/lib/shamela-server';
+
+export async function getBookSafeAction(bookId: number) {
+  try {
+    // Validate configuration
+    requireConfigValue('apiKey');
+    requireConfigValue('booksEndpoint');
+    
+    const book = await getBook(bookId);
+    return { success: true, data: book };
+  } catch (error) {
+    console.error('Failed to get book:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+```
+
+## Troubleshooting
+
+### Module not found errors
+
+Ensure `serverExternalPackages` is set in `next.config.ts`:
+
+```typescript
+serverExternalPackages: ['shamela', 'sql.js']
+```
+
+### WASM file not found
+
+Verify the WASM path in your server configuration:
+
+```typescript
+import { join } from 'node:path';
+
+configure({
+  sqlJsWasmUrl: join(
+    process.cwd(),
+    'node_modules',
+    'sql.js',
+    'dist',
+    'sql-wasm.wasm'
+  ),
+});
+```
+
+### Production build works differently than development
+
+Ensure `serverExternalPackages` is set for both environments. The configuration works the same in development and production.
+
+### Monorepo setup issues
+
+Adjust the WASM path based on your monorepo structure:
+
+```typescript
+configure({
+  sqlJsWasmUrl: join(
+    process.cwd(),
+    '../../node_modules/sql.js/dist/sql-wasm.wasm'
+  ),
+});
+```
+
+### Client-side import errors
+
+<Warning>
+Never import `shamela` in client components. Use `shamela/content` for client-side content processing instead.
+</Warning>
+
+## Demo Application
+
+A minimal Next.js 16 demo application is available in the `demo/` directory of the repository:
+
+```bash
+# Setup
+cp demo/.env.example demo/.env.local
+# Add your API credentials
+
+# Run
+bun run demo              # Development
+bun run demo:build        # Production build
+bun run demo:start        # Production server
+```
+
+Visit [http://localhost:3000](http://localhost:3000) to explore the API.
+
+## Best Practices
+
+<Tip>
+**Create a server-only module** (`lib/shamela-server.ts`) to centralize configuration and prevent accidental client-side imports.
+</Tip>
+
+<Tip>
+**Use `shamela/content`** in client components for content processing without bundling sql.js.
+</Tip>
+
+<Warning>
+**Configure once** in a server-only module to ensure WASM path is set before any function calls.
+</Warning>
+
+<Note>
+**Server Actions** are recommended for client-initiated requests as they provide better type safety than API Routes.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/guides/configuration">
+    Learn about runtime configuration options
+  </Card>
+  <Card title="Content Processing" icon="code" href="/guides/content-processing">
+    Process and transform book content
+  </Card>
+</CardGroup>

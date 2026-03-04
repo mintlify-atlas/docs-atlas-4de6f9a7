@@ -1,0 +1,305 @@
+---
+title: Content Utilities
+description: Examples of processing and cleaning Shamela book content
+---
+
+Utilities for parsing, sanitizing, and transforming Shamela HTML content.
+
+## Parse HTML Content
+
+Parse Shamela HTML into structured lines while preserving title hierarchy:
+
+```typescript
+import { parseContentRobust } from 'shamela/content';
+
+const rawHtml = `
+<span data-type="title" id="toc-10">كِتَابُ الْإِيمَانِ</span>
+حَدَّثَنَا أَبُو بَكْرٍ
+`;
+
+const lines = parseContentRobust(rawHtml);
+lines.forEach((line) => {
+  if (line.id) {
+    console.log(`Title ${line.id}: ${line.text}`);
+  } else {
+    console.log(`Content: ${line.text}`);
+  }
+});
+```
+
+<Accordion title="Output Example">
+
+```javascript
+[
+  {
+    id: '10',
+    text: 'كِتَابُ الْإِيمَانِ'
+  },
+  {
+    text: 'حَدَّثَنَا أَبُو بَكْرٍ'
+  }
+]
+```
+
+</Accordion>
+
+## Character Normalization
+
+Apply regex-based replacement rules to normalize Arabic text:
+
+```typescript
+import { mapPageCharacterContent } from 'shamela/content';
+
+// Default rules: remove \u821C, fix img tags, expand abbreviations
+const text = 'Prophet Muhammad \uFD4C was born';
+const normalized = mapPageCharacterContent(text);
+console.log(normalized);
+// Output: "Prophet Muhammad صلى الله عليه وآله وسلم was born"
+```
+
+### Custom Mapping Rules
+
+```typescript
+import { mapPageCharacterContent } from 'shamela/content';
+import { DEFAULT_MAPPING_RULES } from 'shamela/constants';
+
+// Extend default rules
+const customRules = {
+  ...DEFAULT_MAPPING_RULES,
+  'customPattern': 'replacement',
+};
+
+const processed = mapPageCharacterContent(rawContent, customRules);
+```
+
+## Separate Body from Footnotes
+
+Split page content from trailing footnotes:
+
+```typescript
+import { splitPageBodyFromFooter } from 'shamela/content';
+
+const content = 'Main text content_________Footnote text here';
+const [body, footnotes] = splitPageBodyFromFooter(content);
+
+console.log('Body:', body);           // "Main text content"
+console.log('Footnotes:', footnotes); // "Footnote text here"
+```
+
+### Custom Footnote Marker
+
+```typescript
+import { splitPageBodyFromFooter } from 'shamela/content';
+
+const content = 'Text===NOTES===Footnotes';
+const [body, footnotes] = splitPageBodyFromFooter(content, '===NOTES===');
+```
+
+## Remove Page Markers
+
+Remove Arabic numeral page markers enclosed in turtle brackets:
+
+```typescript
+import { removeArabicNumericPageMarkers } from 'shamela/content';
+
+const text = 'النص ⦗١٢٣⦘ هنا';
+const clean = removeArabicNumericPageMarkers(text);
+console.log(clean); // "النص هنا"
+```
+
+## Clean HTML Tags
+
+Remove anchor and hadeeth tags while preserving span elements:
+
+```typescript
+import { removeTagsExceptSpan } from 'shamela/content';
+
+const html = 'قبل <a href="#">رابط</a> <hadeeth>نص</hadeeth> <span>يبقى</span>';
+const clean = removeTagsExceptSpan(html);
+console.log(clean); // "قبل رابط نص <span>يبقى</span>"
+```
+
+## Convert to Markdown
+
+Convert Shamela HTML to Markdown format:
+
+```typescript
+import { htmlToMarkdown } from 'shamela/content';
+
+const html = `
+<span data-type="title">باب الإيمان</span>
+حَدَّثَنَا <a href="inr://man-123">أبو بكر</a>
+`;
+
+const markdown = htmlToMarkdown(html);
+console.log(markdown);
+// Output: "## باب الإيمان\nحَدَّثَنَا أبو بكر"
+```
+
+## Normalize Title Spans
+
+Handle consecutive title spans that would produce multiple headings:
+
+```typescript
+import { normalizeTitleSpans } from 'shamela/content';
+
+const html = '<span data-type="title">باب الميم</span><span data-type="title">من اسمه محمد</span>';
+
+// Split onto separate lines (recommended)
+const split = normalizeTitleSpans(html, { strategy: 'splitLines' });
+// Output: "<span data-type=\"title\">باب الميم</span>\n<span data-type=\"title\">من اسمه محمد</span>"
+
+// Merge into single title
+const merged = normalizeTitleSpans(html, { strategy: 'merge', separator: ' — ' });
+// Output: "<span data-type=\"title\">باب الميم — من اسمه محمد</span>"
+
+// Convert to hierarchy
+const hierarchy = normalizeTitleSpans(html, { strategy: 'hierarchy' });
+// Output: First span stays title, rest become data-type="subtitle"
+```
+
+## Move Pre-Title Text
+
+Move text after line breaks into title spans:
+
+```typescript
+import { moveContentAfterLineBreakIntoSpan } from 'shamela/content';
+
+const html = '\r١ - <span data-type="title">الباب الأول</span>';
+const result = moveContentAfterLineBreakIntoSpan(html);
+console.log(result);
+// Output: "\r<span data-type=\"title\">١ - الباب الأول</span>"
+```
+
+## Full Markdown Conversion Pipeline
+
+Apply the recommended transformation sequence:
+
+```typescript
+import { convertContentToMarkdown } from 'shamela/content';
+
+const html = '<span data-type="title">كتاب</span><span data-type="title">الإيمان</span>';
+const markdown = convertContentToMarkdown(html);
+console.log(markdown);
+// Output: "## كتاب\n## الإيمان"
+```
+
+### With Custom Options
+
+```typescript
+import { convertContentToMarkdown } from 'shamela/content';
+
+const html = '<span data-type="title">First</span><span data-type="title">Second</span>';
+const markdown = convertContentToMarkdown(html, { 
+  strategy: 'merge', 
+  separator: ' - ' 
+});
+console.log(markdown);
+// Output: "## First - Second"
+```
+
+## Strip All HTML Tags
+
+Remove all HTML tags, keeping only text:
+
+```typescript
+import { stripHtmlTags } from 'shamela/content';
+
+const html = '<div><p>Hello <strong>World</strong></p></div>';
+const text = stripHtmlTags(html);
+console.log(text); // "Hello World"
+```
+
+## Normalize HTML for Styling
+
+Convert hadeeth tags to standard spans:
+
+```typescript
+import { normalizeHtml } from 'shamela/content';
+
+const html = '<hadeeth-123>Hadith content</hadeeth>';
+const normalized = normalizeHtml(html);
+console.log(normalized);
+// Output: "<span class=\"hadeeth\">Hadith content</span>"
+```
+
+## Normalize Line Endings
+
+Convert all line endings to Unix-style:
+
+```typescript
+import { normalizeLineEndings } from 'shamela/content';
+
+const windowsText = 'line1\r\nline2';
+const normalized = normalizeLineEndings(windowsText);
+console.log(normalized); // "line1\nline2"
+```
+
+## Complete Processing Pipeline
+
+Combine utilities for comprehensive content cleaning:
+
+```typescript
+import { 
+  mapPageCharacterContent,
+  removeTagsExceptSpan,
+  removeArabicNumericPageMarkers,
+  splitPageBodyFromFooter,
+  parseContentRobust
+} from 'shamela/content';
+
+function processPageContent(rawHtml: string) {
+  // 1. Remove unwanted tags
+  let content = removeTagsExceptSpan(rawHtml);
+  
+  // 2. Normalize characters
+  content = mapPageCharacterContent(content);
+  
+  // 3. Remove page markers
+  content = removeArabicNumericPageMarkers(content);
+  
+  // 4. Separate body from footnotes
+  const [body, footnotes] = splitPageBodyFromFooter(content);
+  
+  // 5. Parse into structured lines
+  const lines = parseContentRobust(body);
+  
+  return { lines, footnotes };
+}
+
+// Use the pipeline
+const result = processPageContent('<a href="#">Text</a> ⦗١٢٣⦘_________Footnotes');
+console.log('Lines:', result.lines);
+console.log('Footnotes:', result.footnotes);
+```
+
+## Browser-Only Usage
+
+Import content utilities without the full library:
+
+```typescript
+// Lightweight import for browser (no sql.js dependency)
+import {
+  mapPageCharacterContent,
+  splitPageBodyFromFooter,
+  removeTagsExceptSpan,
+  parseContentRobust,
+  htmlToMarkdown,
+  convertContentToMarkdown
+} from 'shamela/content';
+
+// Process pre-downloaded content in the browser
+const clean = removeTagsExceptSpan(mapPageCharacterContent(rawContent));
+const [body, footnotes] = splitPageBodyFromFooter(clean);
+const markdown = htmlToMarkdown(body);
+```
+
+<Note>
+The `shamela/content` export is ideal for client-side React/Next.js components where you want to avoid loading sql.js WASM (~1.5KB gzipped vs ~900KB).
+</Note>
+
+## Related Functions
+
+- [getBook](/api-reference/data-access/get-book) - Retrieve book data to process
+- [parseContentRobust](/api-reference/content-utilities/parse-content-robust) - Parse HTML into structured lines
+- [convertContentToMarkdown](/api-reference/content-utilities/convert-content-to-markdown) - Full conversion pipeline

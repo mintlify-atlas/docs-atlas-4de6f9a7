@@ -1,0 +1,229 @@
+---
+title: 'Master Data Types'
+description: 'Types for the master database containing books, authors, and categories'
+---
+
+## MasterData
+
+Master data structure containing all core entities from the Shamela database.
+
+```typescript
+type MasterData = {
+  authors: Author[];
+  books: Book[];
+  categories: Category[];
+  version: number;
+};
+```
+
+<ResponseField name="authors" type="Author[]" required>
+  Array of all authors in the database
+</ResponseField>
+
+<ResponseField name="books" type="Book[]" required>
+  Array of all books in the database
+</ResponseField>
+
+<ResponseField name="categories" type="Category[]" required>
+  Array of all categories in the database
+</ResponseField>
+
+<ResponseField name="version" type="number" required>
+  Version number of the master database
+</ResponseField>
+
+---
+
+## Author
+
+Represents an author entity.
+
+```typescript
+type Author = {
+  id: number;
+  name: string;
+  biography: string | null;
+  death_number: string;
+  death_text: string | null;
+  is_deleted?: string;
+};
+```
+
+<ResponseField name="id" type="number" required>
+  Unique identifier for the author
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  Author's full name
+</ResponseField>
+
+<ResponseField name="biography" type="string | null" required>
+  Author's biographical information (null if not available)
+</ResponseField>
+
+<ResponseField name="death_number" type="string" required>
+  Death year or UNKNOWN_VALUE_PLACEHOLDER if not known
+</ResponseField>
+
+<ResponseField name="death_text" type="string | null" required>
+  Death year formatted as text (null if not available)
+</ResponseField>
+
+<ResponseField name="is_deleted" type="string">
+  Set to '1' if this author was deleted in a patch update
+</ResponseField>
+
+---
+
+## Book
+
+Represents a book entity.
+
+```typescript
+type Book = {
+  id: number;
+  name: string;
+  author: string;
+  category: string;
+  major_release: string;
+  minor_release: string;
+  bibliography: string;
+  date: string;
+  hint: string | null;
+  metadata: string;
+  pdf_links: string | null;
+  printed: string;
+  type: string;
+  is_deleted?: string;
+};
+```
+
+<ResponseField name="id" type="number" required>
+  Unique identifier for the book
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  Book title
+</ResponseField>
+
+<ResponseField name="author" type="string" required>
+  Serialized author ID(s), e.g., "2747, 3147" or "513"
+</ResponseField>
+
+<ResponseField name="category" type="string" required>
+  Category ID
+</ResponseField>
+
+<ResponseField name="major_release" type="string" required>
+  Major version number of the book
+</ResponseField>
+
+<ResponseField name="minor_release" type="string" required>
+  Minor version number of the book
+</ResponseField>
+
+<ResponseField name="bibliography" type="string" required>
+  Bibliography information
+</ResponseField>
+
+<ResponseField name="date" type="string" required>
+  Publication date (or 99999 if unavailable)
+</ResponseField>
+
+<ResponseField name="hint" type="string | null" required>
+  Additional hint or description (null if not available)
+</ResponseField>
+
+<ResponseField name="metadata" type="string" required>
+  Serialized metadata as JSON string
+</ResponseField>
+
+<ResponseField name="pdf_links" type="string | null" required>
+  Serialized PDF links (null if not available)
+</ResponseField>
+
+<ResponseField name="printed" type="string" required>
+  Flag indicating if book has been printed
+</ResponseField>
+
+<ResponseField name="type" type="string" required>
+  Book type classification
+</ResponseField>
+
+<ResponseField name="is_deleted" type="string">
+  Set to '1' if this book was deleted in a patch update
+</ResponseField>
+
+---
+
+## Category
+
+Represents a book category.
+
+```typescript
+type Category = {
+  id: number;
+  name: string;
+  order: string;
+  is_deleted?: string;
+};
+```
+
+<ResponseField name="id" type="number" required>
+  Unique identifier for the category
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  Category name
+</ResponseField>
+
+<ResponseField name="order" type="string" required>
+  Display order for sorting categories
+</ResponseField>
+
+<ResponseField name="is_deleted" type="string">
+  Set to '1' if this category was deleted in a patch update
+</ResponseField>
+
+## Usage Example
+
+```typescript
+import { getMaster } from 'shamela';
+
+const master = await getMaster();
+
+console.log(`Version: ${master.version}`);
+console.log(`Books: ${master.books.length}`);
+console.log(`Authors: ${master.authors.length}`);
+console.log(`Categories: ${master.categories.length}`);
+
+// Find books by category
+const categoryId = '1';
+const booksInCategory = master.books.filter(book => book.category === categoryId);
+
+// Find author information
+const author = master.authors.find(a => a.id === 100);
+console.log(author?.name, author?.death_text);
+```
+
+## Denormalizing Books
+
+Use `denormalizeBooks()` to resolve author and category references:
+
+```typescript
+import { getMaster, denormalizeBooks } from 'shamela';
+
+const master = await getMaster();
+const books = denormalizeBooks(master);
+
+// Now you can access nested objects directly
+const book = books[0];
+console.log(book.name);
+console.log(book.author.name);      // Resolved author object
+console.log(book.category.name);    // Resolved category object
+```
+
+## Related Types
+
+- [BookData](/api/types/book-data) - Individual book content structure
+- [ShamelaConfig](/api/types/configuration) - Library configuration options

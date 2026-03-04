@@ -1,0 +1,114 @@
+---
+title: 'Book Data Types'
+description: 'Types for representing book content including pages and titles'
+---
+
+## BookData
+
+Represents book content data including pages and title hierarchy.
+
+```typescript
+type BookData = {
+  pages: Page[];
+  titles: Title[];
+};
+```
+
+<ResponseField name="pages" type="Page[]" required>
+  Array of pages in the book
+</ResponseField>
+
+<ResponseField name="titles" type="Title[]" required>
+  Array of titles/chapters in the book
+</ResponseField>
+
+---
+
+## Page
+
+Represents a page in a book with content and optional metadata.
+
+```typescript
+type Page = {
+  id: number;
+  content: string;
+  page?: number;
+  part?: string;
+  number?: string;
+};
+```
+
+<ResponseField name="id" type="number" required>
+  Unique identifier for the page
+</ResponseField>
+
+<ResponseField name="content" type="string" required>
+  HTML content of the page
+</ResponseField>
+
+<ResponseField name="page" type="number">
+  Page number reference
+</ResponseField>
+
+<ResponseField name="part" type="string">
+  Part or volume identifier
+</ResponseField>
+
+<ResponseField name="number" type="string">
+  Additional page numbering information
+</ResponseField>
+
+---
+
+## Title
+
+Represents a title heading or chapter in a book.
+
+```typescript
+type Title = {
+  id: number;
+  content: string;
+  page: number;
+  parent?: number;
+};
+```
+
+<ResponseField name="id" type="number" required>
+  Unique identifier for the title
+</ResponseField>
+
+<ResponseField name="content" type="string" required>
+  HTML content of the title heading
+</ResponseField>
+
+<ResponseField name="page" type="number" required>
+  Page number where this title appears
+</ResponseField>
+
+<ResponseField name="parent" type="number">
+  Parent title ID for hierarchical navigation
+</ResponseField>
+
+## Usage Example
+
+```typescript
+import { getBook } from 'shamela';
+
+const book = await getBook(26592);
+
+console.log(`Book has ${book.pages.length} pages`);
+
+// Display table of contents
+book.titles?.forEach(title => {
+  console.log(`${title.id}: ${title.content} (Page ${title.page})`);
+});
+
+// Access page content
+const firstPage = book.pages[0];
+console.log(firstPage.content);
+```
+
+## Related Types
+
+- [MasterData](/api/types/master-data) - Master database structure with all books, authors, and categories
+- [ShamelaConfig](/api/types/configuration) - Library configuration options

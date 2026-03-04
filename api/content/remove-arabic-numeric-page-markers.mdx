@@ -1,0 +1,100 @@
+---
+title: removeArabicNumericPageMarkers()
+description: Remove Arabic numeral page markers from text
+---
+
+## Overview
+
+Removes Arabic numeral page markers enclosed in turtle ⦗ ⦘ brackets. These markers are commonly used in Shamela texts to denote page numbers in the original printed edition.
+
+## Signature
+
+```typescript
+removeArabicNumericPageMarkers(text: string): string
+```
+
+## Parameters
+
+<ParamField path="text" type="string" required>
+  Text potentially containing page markers
+</ParamField>
+
+## Returns
+
+<ResponseField name="string" type="string">
+  The text with numeric markers replaced by a single space
+</ResponseField>
+
+## Behavior
+
+- Matches Arabic numerals (٠-٩) enclosed in ⦗ ⦘ brackets
+- Removes up to two preceding whitespace characters (space or `\r`)
+- Removes up to one following whitespace character
+- Replaces the entire match with a single space
+- Uses the pattern: `/(?: |\r){0,2}⦗[\u0660-\u0669]+⦘(?: |\r)?/g`
+
+## Example
+
+```typescript
+import { removeArabicNumericPageMarkers } from 'shamela';
+
+const text = 'النص الأول ⦗١٢٣⦘ النص الثاني ⦗٤٥٦⦘ النص الثالث';
+const cleaned = removeArabicNumericPageMarkers(text);
+
+console.log(cleaned);
+// => "النص الأول  النص الثاني  النص الثالث"
+```
+
+## Arabic Numerals
+
+The function recognizes Arabic-Indic numerals (٠-٩):
+
+| Arabic | Latin | Unicode |
+|--------|-------|----------|
+| ٠ | 0 | U+0660 |
+| ١ | 1 | U+0661 |
+| ٢ | 2 | U+0662 |
+| ٣ | 3 | U+0663 |
+| ٤ | 4 | U+0664 |
+| ٥ | 5 | U+0665 |
+| ٦ | 6 | U+0666 |
+| ٧ | 7 | U+0667 |
+| ٨ | 8 | U+0668 |
+| ٩ | 9 | U+0669 |
+
+## Use Cases
+
+- **Clean display text** - Remove page markers before displaying to users
+- **Search preparation** - Remove markers before indexing for search
+- **Text analysis** - Clean text for linguistic analysis
+- **Export formatting** - Remove markers when exporting to other formats
+
+## Processing Order
+
+Recommended order in a processing pipeline:
+
+```typescript
+import {
+  mapPageCharacterContent,
+  removeTagsExceptSpan,
+  removeArabicNumericPageMarkers,
+  parseContentRobust,
+} from 'shamela';
+
+// 1. Normalize characters
+let content = mapPageCharacterContent(rawContent);
+
+// 2. Remove unwanted tags
+content = removeTagsExceptSpan(content);
+
+// 3. Remove page markers
+content = removeArabicNumericPageMarkers(content);
+
+// 4. Parse into structured lines
+const lines = parseContentRobust(content);
+```
+
+## Related Functions
+
+- [`mapPageCharacterContent()`](/api/content/map-page-character-content) - General character normalization
+- [`removeTagsExceptSpan()`](/api/content/remove-tags-except-span) - HTML tag removal
